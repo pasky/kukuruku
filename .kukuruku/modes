@@ -1,0 +1,71 @@
+[TetrapolTCH]
+name=Tetrapol TCH
+rate=16000
+bw=4800
+transition=2000
+filtertype=window
+program=_MODEPATH_/tetrapol.sh TCH
+resample=yes
+
+[TetrapolCCH]
+name=Tetrapol CCH
+rate=16000
+bw=4800
+transition=2000
+filtertype=window
+program=_MODEPATH_/tetrapol.sh CCH
+resample=yes
+
+[Tetra]
+name=Tetra
+rate=36000
+bw=19000
+transition=1024
+filtertype=rcos
+program=_MODEPATH_/tetra.sh
+resample=yes
+
+[NFM]
+name=Narrow FM (24k)
+rate=24000
+bw=11000
+transition=1024
+filtertype=rcos
+program=_MODEPATH_/nfm.py
+resample=yes
+
+[WFM]
+name=Wide FM (144k)
+rate=144000
+bw=65000
+transition=15000
+filtertype=window
+program=_MODEPATH_/wfm.py
+resample=yes
+
+[MFM]
+name=Wide FM (48k)
+rate=48000
+bw=22000
+transition=5000
+filtertype=window
+program=_MODEPATH_/mfm.py
+resample=yes
+
+[RAW32]
+name=Raw data (32k)
+rate=32000
+bw=15000
+transition=2000
+filtertype=window
+program=_MODEPATH_/raw.sh 32
+resample=yes
+
+[RAW128]
+name=Raw data (128k)
+rate=128000
+bw=60000
+transition=8000
+filtertype=window
+program=_MODEPATH_/raw.sh 128
+resample=yes
