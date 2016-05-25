@@ -105,7 +105,27 @@ class scanner():
     self.sdr.tune(scanframe.freq)
     self.sdrflush()
     self.l.l("scan: tune %i"%scanframe.freq, "INFO")
-    time.sleep(10)
+
+    delta = self.conf.interval - time.time() % self.conf.interval
+    sbuf = self.pipefile.read(int(self.samplerate * COMPLEX64 * delta))
+    iters = 0
+
+    acc = np.zeros(self.conf.fftw)
+    dt = np.dtype("=c8")
+    for i in range(0, len(sbuf)-self.conf.fftw*8, self.conf.fftw*8): # compute short-time FFTs, sum result to acc
+      buf = np.frombuffer(sbuf, count=self.conf.fftw, dtype=dt, offset = i)
+
+      buf = buf*self.window
+
+      fft = np.absolute(np.fft.fft(buf))
+      acc += fft
+      iters += 1
+
+    floor = sorted(acc)[int(scanframe.floor * self.conf.fftw)]
+
+    print(acc)
+
+    print("read %i"%len(buf))
 
   def sdrflush(self):
     self.pipefile.read(self.conf.bufsize * COMPLEX64)
@@ -116,6 +136,7 @@ class scanner():
 
     self.conf = util.ConfReader(confdir, self.samplerate)
 
+    self.window = np.hamming(self.conf.fftw)
     selframe = None
     reclen = None
     while(True):
