@@ -1,0 +1,11 @@
+*/*.pyc
+TODO
+client/colormap.c
+client/modes/*.py
+client/*.wav
+scanner/*.so
+scanner/*.o
+scanner/xlater_wrap.c
+scanner/xlater_wrap.o
+server/*.o
+server/server
