@@ -72,7 +72,7 @@ class scanner():
     helpers = []
     for channel in cronframe.channels:
       ch = channelhelper()
-      ch.decim = math.ceil(self.samplerate / channel.bw)
+      ch.decim = math.ceil(self.samplerate / (channel.bw*2))
       ch.rate = self.samplerate/ch.decim
       ch.file = self.getfn(channel.freq, ch.rate) + ".cfile"
       ch.rotator = -float(channel.freq-cronframe.freq)/self.samplerate * 2*math.pi
@@ -92,8 +92,6 @@ class scanner():
 
       # read data from sdr
       buf = self.pipefile.read(self.conf.bufsize * COMPLEX64)
-
-      print("read %i of %i"%(len(buf), self.conf.bufsize))
 
       # xlate each channel
       for ch in helpers:

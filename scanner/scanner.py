@@ -86,11 +86,12 @@ for opt, arg in opts:
 if not confdir:
   usage()
 
-d = tempfile.mkdtemp()
-outpipe = os.path.join(d, 'fifo')
+#d = tempfile.mkdtemp()
+#outpipe = os.path.join(d, 'fifo')
+outpipe = "/tmp/pipe"
 print("PIPE %s"%outpipe)
 
-os.mkfifo(outpipe)
+#os.mkfifo(outpipe)
 
 sdr = top_block(device, rate, 0, 0, outpipe)
 

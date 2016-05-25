@@ -15,17 +15,11 @@ int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _ta
   assert(rotposlen == sizeof(lv_32fc_t));
   assert(firposlen == sizeof(int32_t));
 
-  printf("buflen %i\n", buflen);
-  printf("cylen %i\n", carrylen);
-
   int * firpos = (int*) _firpos;
   float * rotpos = (float*) _rotpos;
 
-  printf("firpos %i\n", *firpos);
-
   float * taps = (float*) _taps;
   int nsamples = buflen / (sizeof(float)*COMPLEX);
-  printf("nsamples: %i\n", nsamples);
 
   float * alldata = malloc(sizeof(float) * COMPLEX * (buflen + carrylen));
   lv_32fc_t phase_inc = lv_cmake(cos(rotator), sin(rotator));
@@ -52,7 +46,7 @@ int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _ta
   for(i = *firpos; i<nsamples; i+=decim) {
     lv_32fc_t prod;
 
-    volk_32fc_32f_dot_prod_32fc(&prod, (lv_32fc_t*) (alldata+i*COMPLEX), taps, tapslen);
+    volk_32fc_32f_dot_prod_32fc(&prod, (lv_32fc_t*) (alldata+i*COMPLEX), taps, tapslen/sizeof(float));
 
     fwrite(&prod, sizeof(lv_32fc_t), 1, of);
 
