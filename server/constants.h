@@ -11,6 +11,8 @@
 #define MEGA 1000000
 #define GIGA 1000000000
 
+#define FFTSIZE 1024
+
 #define WRITE_FRAMES_SYNC 2
 
 #define HISTOGRAM_RES 256
