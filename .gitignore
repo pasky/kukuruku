@@ -9,3 +9,7 @@ scanner/xlater_wrap.c
 scanner/xlater_wrap.o
 server/*.o
 server/server
+*/__pycache__/
+client/c2s_pb2.py
+server/c2s.pb-c.c
+server/c2s.pb-c.h
