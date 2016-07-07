@@ -13,6 +13,7 @@ import math
 import subprocess
 import numpy as np
 import libutil
+import c2s_pb2 as c2s
 
 # some protocol constants
 class proto():
@@ -197,10 +198,18 @@ class client():
 
     self.xlater_q[self.xln] = pending_xlater
 
-    msgh = struct.pack("=iifii", proto.CREATE_XLATER, self.xln, rotate, decimation, history)
     msgt = struct.pack("=%if"%len(taps), *taps)
 
-    self.q_msg(msgh+msgt)
+    msg = c2s.CLI_CREATE_XLATER()
+    msg.decimation = pending_xlater.decimation
+    msg.startframe = history
+    msg.rotate = pending_xlater.rotate
+    msg.remoteid = pending_xlater.rid
+
+    msg.taps.extend(taps)
+
+    hdr = struct.pack("=i", proto.CREATE_XLATER)
+    self.q_msg(hdr + msg.SerializeToString())
 
     self.xln += 1
 

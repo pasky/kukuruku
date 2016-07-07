@@ -8,6 +8,8 @@
 #include "xlate_worker.h"
 #include "util.h"
 
+#include "c2s.pb-c.h"
+
 extern pthread_mutex_t datamutex;
 extern pthread_mutex_t llmutex;
 extern SLIST_HEAD(worker_head_t, worker) worker_head;
@@ -75,18 +77,17 @@ int parse_client_req(tcp_cli_t * me, char * buf, int32_t len) {
   buf += 4;
 
   if(type == CREATE_XLATER) {
-    S_ASSERT(sizeof(struct CLI_CREATE_XLATER));
+    C2s__CLICREATEXLATER *msg;
+    msg = c2s__cli__create__xlater__unpack(NULL, len, buf);
 
-    struct CLI_CREATE_XLATER * s = (struct CLI_CREATE_XLATER *)buf;
-
-    int tapslen = len - HEADER_LEN - sizeof(struct CLI_CREATE_XLATER);
-    float * taps = malloc(tapslen);
-    memcpy(taps, buf + HEADER_LEN + sizeof(struct CLI_CREATE_XLATER), tapslen);
+    size_t tapslen = msg->n_taps;
+    float * taps = malloc(tapslen * sizeof(float));
+    memcpy(taps, msg->taps, tapslen * sizeof(float));
 
     pthread_mutex_lock(&llmutex);
 
-    worker * w = create_xlate_worker(s->rotate, s->decimation, s->startframe, taps, tapslen/sizeof(float));
-    w->remoteid = s->remoteid;
+    worker * w = create_xlate_worker(msg->rotate, msg->decimation, msg->startframe, taps, tapslen);
+    w->remoteid = msg->remoteid;
     msg_running_xlater(me, w);
 
     pthread_mutex_unlock(&llmutex);

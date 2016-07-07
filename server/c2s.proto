@@ -1,0 +1,120 @@
+package c2s;
+
+enum special_payload_type {
+  SPECTRUM = 1;
+  HISTO = 2;
+}
+
+enum sample_type {
+  F32 = 0;
+  I16 = 1;
+}
+
+enum command_type {
+  DUMPBUFFER = 1;
+  RECORD_START = 2;
+  RECORD_STOP = 19;
+  CREATE_XLATER = 3;
+  LIST_XLATERS = 4;
+  DESTROY_XLATER = 5;
+  ENABLE_XLATER = 6;
+  DISABLE_XLATER = 7;
+  SET_GAIN = 8;
+  RETUNE = 9;
+  SET_PPM = 10;
+  SET_HISTO_FFT = 11;
+  SET_RATE = 12;
+  ENABLE_SPECTRUM = 13;
+  DISABLE_SPECTRUM = 14;
+  ENABLE_HISTO = 15;
+  DISABLE_HISTO = 16;
+  GET_INFO = 17;
+  MODIFY_XLATER = 18;
+
+  PAYLOAD = 256;
+  DUMPED = 257;
+  RUNNING_XLATER = 258;
+  INFO = 259;
+}
+
+message CLI_CREATE_XLATER {
+  required int32 remoteid = 1;
+  required float rotate = 2;
+  required int32 decimation = 3;
+  required int32 startframe = 4;
+  repeated float taps = 5;
+}
+
+message CLI_ENABLE_XLATER {
+  required int32 id = 1;
+  required sample_type type = 2;
+}
+
+message CLI_DISABLE_XLATER {
+  required int32 id = 1;
+}
+
+message CLI_MODIFY_XLATER {
+  required int32 localid = 1;
+  required float rotate = 2;
+  repeated float newtaps = 3;
+}
+
+message CLI_DESTROY_XLATER {
+  required int32 id = 1;
+}
+
+message CLI_RECORD_START {
+  required int32 startframe = 1;
+  required int32 stopframe = 2;
+}
+
+message CLI_SET_GAIN {
+  required int32 autogain = 1;
+  required int32 global_gain = 2;
+  required int32 if_gain = 3;
+  required int32 bb_gain = 4;
+}
+
+message CLI_RETUNE {
+  required int64 freq = 1;
+}
+
+message CLI_SET_PPM {
+  required int32 ppm = 1;
+}
+
+message CLI_SET_FFT {
+  required int32 fftsize = 1;
+  required int32 decim = 2;
+}
+
+message SRV_RUNNING_XLATER {
+  required int32 remoteid = 1;
+  required int32 id = 2;
+  required float rotate = 3;
+  required int32 decimation = 4;
+}
+
+message SRV_PAYLOAD {
+  required int32 id = 1;
+  required int32 time = 2;
+  required int32 frameno = 3;
+  required sample_type type = 4;
+  repeated float samples = 5 [packed=true];
+}
+
+message SRV_INFO {
+  required int32 samplerate = 1;
+  required int64 frequency = 2;
+  required int32 ppm = 3;
+  required int32 fftw = 4;
+  required int32 autogain = 5;
+  required int32 global_gain = 6;
+  required int32 if_gain = 7;
+  required int32 bb_gain = 8;
+  required int32 packetlen = 9;
+  required int32 bufsize = 10;
+  required int32 maxtaps = 11;
+}
+
