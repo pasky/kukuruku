@@ -6,8 +6,8 @@ enum special_payload_type {
 }
 
 enum sample_type {
-  F32 = 0;
-  I16 = 1;
+  F32 = 1;
+  I16 = 2;
 }
 
 enum command_type {

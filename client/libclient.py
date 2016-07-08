@@ -78,6 +78,7 @@ class client():
     self.sql_callback = None
     self.xlater_callback = None
     self.auto_enable_xlater = False
+    self.preferred_sample_type = "F32"
 
     self.afcdecim = 5
     self.afcmult = 0.0000001
@@ -121,11 +122,13 @@ class client():
     """
     self.xlater_callback = cb
 
-  def set_auto_enable_xlater(self, val):
+  def set_auto_enable_xlater(self, val, st = "F32"):
     """ Set whether to automatically invoke enable_xlater with create_xlater.
      val -- bool
+     st (optional) -- string describing preferred sample type
     """
     self.auto_enable_xlater = val
+    self.preferred_sample_type = st
 
   def set_afc_params(self, decim, mult):
     """ Set parameters of automatic frequency correction
@@ -308,7 +311,7 @@ class client():
     if msg.remoteid in self.xlater_q.keys():
       xl = self.xlater_q[msg.remoteid]
       if self.auto_enable_xlater:
-        self.enable_xlater(msg.id)
+        self.enable_xlater(msg.id, self.preferred_sample_type)
       del(self.xlater_q[msg.remoteid])
 
     xl.rotate = msg.rotate
@@ -326,15 +329,17 @@ class client():
   def process_payload(self, d):
     """ Process a message from server. """
 
-    (wid, time, frameno, stype) = struct.unpack("=4i", d[:16])
+    hlen = struct.calcsize("=4i")
+
+    (wid, time, frameno, stype) = struct.unpack("=4i", d[:hlen])
 
     if wid == proto.PAYLOAD_SPECTRUM: # spectrum, call fft_callback
       if self.fft_callback:
-        self.fft_callback(d[16:], frameno, time)
+        self.fft_callback(d[hlen:], frameno, time)
 
     elif wid == proto.PAYLOAD_HISTO: # histogram, call histo_callback
       if self.histo_callback:
-        self.histo_callback(d[16:])
+        self.histo_callback(d[hlen:])
 
     elif wid >= 0: # channel data
       self.xlaters_lock.acquire()
@@ -350,7 +355,29 @@ class client():
         self.xlaters_lock.release()
         return
 
-      datacut = d[16:]
+      if stype == c2s.F32:
+        datacut = d[hlen:]
+      elif stype == c2s.I16:
+        n = (len(d) - hlen) / struct.calcsize("=h")
+
+        # We need to do rescaling, as some GnuRadio blocks, e.g. MPSK demod,
+        # expect floats in sane range approx. [-1, 1] or at least ~[-10, 10].
+
+        # Python impl, slow
+        #shorts = struct.unpack("=%ih"%n, d[hlen:])
+        #flts = []
+        #for s in shorts:
+        #  flts.append(float(s)/32767)
+        #datacut = struct.pack("=%if"%n, *flts)
+
+        # numpy impl
+        buf = np.frombuffer(d[hlen:], dtype=np.dtype("h"))
+        buf = buf.astype(np.dtype("f"))
+        buf = buf/32767
+        datacut = buf
+
+      else:
+        raise Exception("Unsupported sample type %i"%stype)
 
       if self.xlaters[wid].sql and self.sql_callback: # write according to squelch
         ret = self.sql_callback(self.xlaters[wid].rotate, self.xlaters[wid].decimation)
@@ -385,7 +412,7 @@ class client():
         left = np.sum(acc[:fftlen/2])  # sum power in the lower and upper part of the spectrum
         right = np.sum(acc[fftlen/2:])
 
-        delta = (right-left) / iters * iircoef
+        delta = (right-left) / (iters * (right+left)) * iircoef
         print("AFC change %f"%(delta))
 
         self.modify_xlater(wid, self.xlaters[wid].rotate + delta, None) # modify rotator with it
@@ -425,12 +452,18 @@ class client():
     if self.info_callback:
       self.info_callback(samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps)
 
-  def enable_xlater(self, idx):
+  def enable_xlater(self, idx, sampleformat = "F32"):
     hdr = struct.pack("=i", proto.ENABLE_XLATER)
 
     msg = c2s.CLI_ENABLE_XLATER()
     msg.id = idx
-    msg.type = c2s.F32
+
+    if sampleformat == "F32":
+      msg.type = c2s.F32
+    elif sampleformat == "I16":
+      msg.type = c2s.I16
+    else:
+      raise Exception("Bad sample format %s"%sampleformat)
 
     self.q_msg(hdr + msg.SerializeToString())
 

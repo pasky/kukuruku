@@ -3,8 +3,7 @@
 
 typedef enum {
   F32 = 1,
-  U8 = 2,
-  I16 = 3,
+  I16 = 2,
 } sample_type;
 
 #endif

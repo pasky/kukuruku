@@ -205,14 +205,27 @@ void * socket_write_thr(void * a) {
 
                 struct SRV_PAYLOAD_HEADER ph;
 
-                int32_t size = sizeof(ph) + plen;
-
                 ph.t = PAYLOAD;
                 ph.id = w->wid;
+                ph.type = frm->sampletype;
 
-                writen(client->fd, &size, sizeof(size));
-                writen(client->fd, &ph, sizeof(ph));
-                writen(client->fd, w->outbuf[bufptr].data, plen);
+                if(frm->sampletype == F32) {
+                  int32_t size = sizeof(ph) + plen;
+                  writen(client->fd, &size, sizeof(size));
+                  writen(client->fd, &ph, sizeof(ph));
+                  writen(client->fd, w->outbuf[bufptr].data, plen);
+                } else if(frm->sampletype == I16) {
+                  plen /= 2;
+                  int32_t size = sizeof(ph) + plen;
+                  writen(client->fd, &size, sizeof(size));
+                  writen(client->fd, &ph, sizeof(ph));
+
+                  float scale = ((float)INT16_MAX)/(w->maxval);
+                  for(int i = 0; i<(plen*2/sizeof(float)); i++) {
+                    int16_t sample = ((float*)(w->outbuf[bufptr].data))[i] * scale;
+                    writen(client->fd, &sample, sizeof(int16_t));
+                  }
+                }
                 willwait = false;
               }
             }

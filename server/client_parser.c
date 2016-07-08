@@ -115,6 +115,7 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
 
     req_frames * r = malloc(sizeof(req_frames));
     r->wid = s->id;
+    r->sampletype = s->type;
     SLIST_INSERT_HEAD(&(me->req_frames_head), r, next);
     printf("enable %i\n", r->wid);
 

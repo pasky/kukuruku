@@ -30,6 +30,17 @@ extern SLIST_HEAD(worker_head_t, worker) worker_head;
 
 int widx;
 
+float calc_max_amplitude(float * taps, int tapslen) {
+
+  float acc = 0;
+  for(int i = 0; i<tapslen; i++) {
+    acc += fabs(taps[i]);
+  }
+
+  return acc;
+
+}
+
 worker * create_xlate_worker(float rotate, int decim, int history, float * taps, int tapslen) {
 
   worker * w = calloc(1, sizeof(worker));
@@ -39,6 +50,9 @@ worker * create_xlate_worker(float rotate, int decim, int history, float * taps,
   w->wid = widx;
   w->taps = taps;
   w->tapslen = tapslen;
+
+  w->maxval = calc_max_amplitude(taps, tapslen);
+
   if(history == -1) {
     w->last_written = sdr_cptr;
   } else {
@@ -121,6 +135,7 @@ void * xlate_worker_thr(void *ptr) {
       ctx->taps = ctx->newtaps;
       ctx->tapslen = ctx->newtapslen;
       ctx->newtaps = NULL;
+      ctx->maxval = calc_max_amplitude(ctx->taps, ctx->tapslen);
     }
     if(!ctx->enabled) {
       pthread_mutex_unlock(&datamutex);

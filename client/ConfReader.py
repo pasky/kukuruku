@@ -26,6 +26,7 @@ class ConfReader():
     self.afcdecim = rc.getfloat(section, 'afcdecim')
     self.afcmult = rc.getfloat(section, 'afcmult')
     self.modepath = rc.get(section, 'modepath')
+    self.preferformat = rc.get(section, 'preferformat')
     self.fftw = None
 
 def read_modes(path):

@@ -1,3 +1,6 @@
+#ifndef CLIENT_PARSER_H
+#define CLIENT_PARSER_H
+
 #include "socket.h"
 #include "worker.h"
 #include "sample_type.h"
@@ -43,7 +46,6 @@ typedef enum sdr_iface {
   SDR_IFACE_GAIN = 3,
 } sdr_iface;
 
-
 struct __attribute__ ((__packed__)) SRV_PAYLOAD_HEADER {
   command_type t;
   int32_t id;
@@ -52,3 +54,4 @@ struct __attribute__ ((__packed__)) SRV_PAYLOAD_HEADER {
   sample_type type;
 };
 
+#endif

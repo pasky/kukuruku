@@ -4,11 +4,13 @@
 #include <sys/queue.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include "sample_type.h"
 
 void network_listener(char*, char*);
 
 typedef struct req_frames {
   int wid;
+  sample_type sampletype;
   SLIST_ENTRY(req_frames) next;
 } req_frames;
 

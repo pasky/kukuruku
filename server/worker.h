@@ -20,6 +20,7 @@ typedef struct worker {
   int32_t send_cptr;
   float * taps;
   float * newtaps;
+  float maxval;
   int tapslen;
   int newtapslen;
   int32_t remoteid;

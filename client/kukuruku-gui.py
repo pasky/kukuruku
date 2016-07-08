@@ -296,7 +296,7 @@ def on_demod(widget, event):
       cl.acquire_xlaters()
       wid = pixel2xlater(wf_click_x)
       if wid is not None: # user clicked on a running xlater
-        cl.enable_xlater(wid)
+        cl.enable_xlater(wid, conf.preferformat)
 
         decimation = cl.get_xlaters()[wid].decimation
         rate = int(round(float(samplerate) / decimation))
@@ -538,7 +538,7 @@ if len(sys.argv) >= 2:
   (conf.HOST, conf.PORT) = sys.argv[1].split(":")
   conf.PORT = int(conf.PORT)
 
-cl.set_auto_enable_xlater(True)
+cl.set_auto_enable_xlater(True, conf.preferformat)
 cl.set_info_callback(info_cb)
 cl.connect(conf.HOST, conf.PORT)
 cl.set_afc_params(conf.afcdecim, conf.afcmult)
