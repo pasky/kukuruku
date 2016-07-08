@@ -93,12 +93,12 @@ int bind_me(char * port, const char * address, bool wildcard) {
     }
 
     // see https://sourceware.org/bugzilla/show_bug.cgi?id=9981
-    if (rp->ai_family == AF_INET) {
+    //if (rp->ai_family == AF_INET) {
       // they don't have the fix in Debian yet
       // just remove it if you expect sane behavior of
       // getaddrinfo
-      continue;
-    }
+    //  continue;
+    //}
 
     sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 
@@ -149,7 +149,7 @@ void * client_read_thr(void * param) {
       fprintf(stderr, "Read garbage size: %i\n", size);
       break;
     }
-    char * buf = malloc(size);
+    uint8_t * buf = (uint8_t*) malloc(size);
     ret = readn(me->fd, buf, size);
     if(ret < size) {
       free(buf);

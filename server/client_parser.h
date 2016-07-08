@@ -2,7 +2,7 @@
 #include "worker.h"
 #include "sample_type.h"
 
-int parse_client_req(tcp_cli_t *, char *, int32_t);
+int parse_client_req(tcp_cli_t *, const uint8_t *, int32_t);
 
 enum special_payload_type {
   SPECTRUM = -1,
@@ -43,57 +43,6 @@ typedef enum sdr_iface {
   SDR_IFACE_GAIN = 3,
 } sdr_iface;
 
-
-struct __attribute__ ((__packed__)) CLI_CREATE_XLATER {
-  int32_t remoteid;
-  float rotate;
-  int32_t decimation;
-  int32_t startframe;
-};
-
-struct __attribute__ ((__packed__)) CLI_ENABLE_XLATER {
-  int32_t id;
-  sample_type type;
-};
-
-struct __attribute__ ((__packed__)) CLI_DISABLE_XLATER {
-  int32_t id;
-};
-
-struct __attribute__ ((__packed__)) CLI_MODIFY_XLATER {
-  int32_t localid;
-  float rotate;
-  int32_t newtaps;
-};
-
-struct __attribute__ ((__packed__)) CLI_DESTROY_XLATER {
-  int32_t id;
-};
-
-struct __attribute__ ((__packed__)) CLI_RECORD_START {
-  int32_t startframe;
-  int32_t stopframe;
-};
-
-struct __attribute__ ((__packed__)) CLI_SET_GAIN {
-  int32_t autogain;
-  int32_t global_gain;
-  int32_t if_gain;
-  int32_t bb_gain;
-};
-
-struct __attribute__ ((__packed__)) CLI_RETUNE {
-  int64_t freq;
-};
-
-struct __attribute__ ((__packed__)) CLI_SET_PPM {
-  int32_t ppm;
-};
-
-struct __attribute__ ((__packed__)) CLI_SET_HISTO_FFT {
-  int32_t fftsize;
-  int32_t decim;
-};
 
 struct __attribute__ ((__packed__)) SRV_RUNNING_XLATER {
   command_type t;

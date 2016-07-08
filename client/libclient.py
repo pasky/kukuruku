@@ -176,8 +176,13 @@ class client():
      startframe -- first frame to record, -1 for current frame
      duration -- how many frames to record.
     """
-    msg = struct.pack("=3i", proto.RECORD_START, startframe, duration)
-    self.q_msg(msg)
+    hdr = struct.pack("=i", proto.RECORD_START)
+
+    msg = c2s.CLI_RECORD_START()
+    msg.startframe = startframe
+    msg.stopframe = duration
+
+    self.q_msg(hdr + msg)
 
   def create_xlater(self, rotate, decimation, taps, program, history):
     """ Create a new xlater on the server.
@@ -198,8 +203,6 @@ class client():
 
     self.xlater_q[self.xln] = pending_xlater
 
-    msgt = struct.pack("=%if"%len(taps), *taps)
-
     msg = c2s.CLI_CREATE_XLATER()
     msg.decimation = pending_xlater.decimation
     msg.startframe = history
@@ -216,7 +219,7 @@ class client():
     return pending_xlater.rid
 
   def subscribe_xlater(self, xid, program):
-    """ Spaen program and pipe the output of xlater ID xid to it. """
+    """ Spawn program and pipe the output of xlater ID xid to it. """
     (self.xlaters[xid].data, self.xlaters[xid].thread) = self.spawn_mode(program)
 
   def modify_xlater(self, xid, rotate, taps):
@@ -224,28 +227,35 @@ class client():
 
     self.xlaters[xid].rotate = rotate
 
-    newtaps = 1
-    if taps is None:
-      newtaps = 0
+    hdr = struct.pack("=i", proto.MODIFY_XLATER)
 
-    msgh = struct.pack("=iifi", proto.MODIFY_XLATER, xid, rotate, newtaps)
-    msgt = b''
-    if taps is not None:
-      msgt = struct.pack("=%if"%len(taps), *taps)
+    msg = c2s.CLI_MODIFY_XLATER()
+    msg.localid = xid
+    msg.rotate = rotate
+    if taps:
+      msg.newtaps.extend(taps)
 
-    self.q_msg(msgh+msgt)
+    self.q_msg(hdr + msg.SerializeToString())
 
     if self.xlater_callback:
       self.xlater_callback()
 
   def destroy_xlater(self, xid):
     """ Remove an xlater from the remote server. """
-    msg = struct.pack("=2i", proto.DESTROY_XLATER, xid)
+    hdr = struct.pack("=i", proto.DESTROY_XLATER)
+
+    msg = c2s.CLI_DESTROY_XLATER()
+    msg.id = xid
+
     self.xlaters_lock.acquire()
+
     del(self.xlaters[xid])
-    self.q_msg(msg)
+
+    self.q_msg(hdr + msg.SerializeToString())
+
     if self.xlater_callback:
       self.xlater_callback()
+
     self.xlaters_lock.release()
 
   def set_squelch(self, xid, val):
@@ -397,21 +407,33 @@ class client():
       self.info_callback(samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps)
 
   def enable_xlater(self, idx):
-    msg = struct.pack("=3i", proto.ENABLE_XLATER, idx, 0)
-    self.q_msg(msg)
+    hdr = struct.pack("=i", proto.ENABLE_XLATER)
+
+    msg = c2s.CLI_ENABLE_XLATER()
+    msg.id = idx
+    msg.type = c2s.F32
+
+    self.q_msg(hdr + msg.SerializeToString())
 
   def disable_xlater(self, idx):
-    msg = struct.pack("=2i", proto.DISABLE_XLATER, idx)
-    self.q_msg(msg)
+    hdr = struct.pack("=i", proto.DISABLE_XLATER)
+
+    msg = c2s.CLI_DISABLE_XLATER()
+    msg.id = idx
+
+    self.q_msg(hdr + msg.SerializeToString())
 
   def list_xlaters(self):
     msg = struct.pack("=i", proto.LIST_XLATERS)
     self.q_msg(msg)
 
   def set_frequency(self, f):
-    print("tune %i"%f)
-    msg = struct.pack("=iq", proto.RETUNE, f)
-    self.q_msg(msg)
+    hdr = struct.pack("=i", proto.RETUNE)
+
+    msg = c2s.CLI_RETUNE()
+    msg.freq = f
+
+    self.q_msg(hdr + msg.SerializeToString())
 
   def set_gain(self, gain):
     """ Set the gain parameters on the server.
@@ -426,14 +448,23 @@ class client():
      The only parameter is a list of at least one element. The last element of the list is extended so
       the list has at least four elements.
     """
-    msg = struct.pack("=i", proto.SET_GAIN)
-    for i in range(0, 4):
-      msg += struct.pack("=i", gain[min(len(gain)-1, i)])
-    self.q_msg(msg)
+    hdr = struct.pack("=i", proto.SET_GAIN)
+
+    msg = c2s.CLI_SET_GAIN()
+    msg.autogain = gain[min(len(gain)-1, 0)]
+    msg.global_gain = gain[min(len(gain)-1, 1)]
+    msg.if_gain = gain[min(len(gain)-1, 2)]
+    msg.bb_gain = gain[min(len(gain)-1, 3)]
+
+    self.q_msg(hdr + msg.SerializeToString())
 
   def set_ppm(self, ppm):
-    msg = struct.pack("=2i", proto.SET_PPM, ppm)
-    self.q_msg(msg)
+    hdr = struct.pack("=i", proto.SET_PPM)
+
+    msg = c2s.CLI_SET_PPM()
+    msg.ppm = ppm
+
+    self.q_msg(hdr + msg.SerializeToString())
 
   def Xlater(self):
     """ Structure to hold information about one running xlater

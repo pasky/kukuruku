@@ -24,6 +24,7 @@
 #include "util.h"
 #include "client_parser.h"
 #include "metadata.h"
+#include "server.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -57,7 +58,7 @@ int32_t samplerate = -1;
 int64_t frequency = 100e6;
 int32_t ppm = INT32_MIN;
 int32_t fftw = FFTSIZE;
-struct CLI_SET_GAIN gain;
+struct current_gain_t gain;
 
 SLIST_HEAD(worker_head_t, worker) worker_head = SLIST_HEAD_INITIALIZER(worker_head);
 
