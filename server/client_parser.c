@@ -30,17 +30,26 @@ extern char* recpath;
 extern FILE * sdr_cmd;
 
 void msg_running_xlater(tcp_cli_t * me, worker * w) {
-  struct SRV_RUNNING_XLATER s;
 
-  int32_t size = sizeof(s);
-  writen(me->fd, &size, sizeof(size));
+  C2s__SRVRUNNINGXLATER s = C2S__SRV__RUNNING__XLATER__INIT;
 
-  s.t = RUNNING_XLATER;
   s.id = w->wid;
   s.remoteid = w->remoteid;
   s.rotate = w->rotate;
   s.decimation = w->decim;
-  writen(me->fd, &s, size);
+
+  size_t len = c2s__srv__running__xlater__get_packed_size(&s);
+  void * buf = malloc(len);
+  c2s__srv__running__xlater__pack(&s, buf);
+
+  uint32_t size = len + sizeof(int32_t);
+
+  writen(me->fd, &size, sizeof(size));
+  int32_t mtype = RUNNING_XLATER;
+  writen(me->fd, &mtype, sizeof(mtype));
+  writen(me->fd, buf, len);
+
+  free(buf);
 }
 
 void msg_server_info(tcp_cli_t * me) {
@@ -70,8 +79,8 @@ void msg_server_info(tcp_cli_t * me) {
 int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
   int type = ((int*)buf2)[0];
 
-  const uint8_t * buf = buf2 + 4;
-  len -= 4; // strip message type
+  const uint8_t * buf = buf2 + sizeof(int32_t);
+  len -= sizeof(int32_t); // strip message type
 
   if(type == CREATE_XLATER) {
     C2s__CLICREATEXLATER *s;

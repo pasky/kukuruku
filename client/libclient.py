@@ -48,6 +48,9 @@ class proto():
 def mylog(s):
   print(s)
 
+def hexdump(s):
+  mylog(":".join("{:02x}".format(ord(c)) for c in s))
+
 class client():
   """ Class representing single connection to one server.
   We may implement multiple-servers-at-once client sometimes in the future
@@ -294,29 +297,31 @@ class client():
 
   def srv_running_xlater(self, packet):
     """ Respond to SRV_RUNNING_XLATER message. We add the xlater to xlaters{} """
-    (rid, wid, rotate, decimation) = struct.unpack("=iifi", packet)
+
+    msg = c2s.SRV_RUNNING_XLATER()
+    msg.ParseFromString(packet)
 
     xl = self.Xlater()
 
     self.xlaters_lock.acquire()
 
-    if rid in self.xlater_q.keys():
-      xl = self.xlater_q[rid]
+    if msg.remoteid in self.xlater_q.keys():
+      xl = self.xlater_q[msg.remoteid]
       if self.auto_enable_xlater:
-        self.enable_xlater(wid)
-      del(self.xlater_q[rid])
+        self.enable_xlater(msg.id)
+      del(self.xlater_q[msg.remoteid])
 
-    xl.rotate = rotate
-    xl.decimation = decimation
+    xl.rotate = msg.rotate
+    xl.decimation = msg.decimation
 
-    self.xlaters[wid] = xl
+    self.xlaters[msg.id] = xl
 
     if self.xlater_callback:
       self.xlater_callback()
 
     self.xlaters_lock.release()
 
-    print("running xlater %i"%wid)
+    print("running xlater %i"%msg.id)
 
   def process_payload(self, d):
     """ Process a message from server. """
@@ -508,6 +513,7 @@ class client():
       d = cl.getdata(cl.sock, 4)
       l = struct.unpack("=i", d[:4])[0]
       d = cl.getdata(cl.sock, l)
+      #hexdump(d)
       dtype = struct.unpack("=i", d[:4])[0]
       if dtype == proto.RUNNING_XLATER:
         cl.srv_running_xlater(d[4:])
@@ -516,5 +522,5 @@ class client():
       elif dtype == proto.INFO:
         cl.process_info(d[4:])
       else:
-        mylog("unknown dtype %i", dtype)
+        mylog("unknown dtype %i"%dtype)
 
