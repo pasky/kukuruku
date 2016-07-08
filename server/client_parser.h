@@ -44,35 +44,11 @@ typedef enum sdr_iface {
 } sdr_iface;
 
 
-struct __attribute__ ((__packed__)) SRV_RUNNING_XLATER {
-  command_type t;
-  int32_t remoteid;
-  int32_t id;
-  float rotate;
-  int32_t decimation;
-};
-
 struct __attribute__ ((__packed__)) SRV_PAYLOAD_HEADER {
   command_type t;
   int32_t id;
   int32_t time;
   int32_t frameno;
-  sample_type type;
-};
-
-struct __attribute__ ((__packed__)) SRV_INFO {
-  command_type t;
-  int32_t samplerate;
-  int64_t frequency;
-  int32_t ppm;
-  int32_t fftw;
-  int32_t autogain;
-  int32_t global_gain;
-  int32_t if_gain;
-  int32_t bb_gain;
-  int32_t packetlen;
-  int32_t bufsize;
-  int32_t maxtaps;
   sample_type type;
 };
 

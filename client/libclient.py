@@ -403,9 +403,23 @@ class client():
 
   def process_info(self, d):
     """ Process SRV_INFO message, call info_callback """
-    (samplerate, frequency, ppm, fftw) = struct.unpack("=iqii", d[:struct.calcsize("=iqii")])
-    gain = struct.unpack("=4i", d[struct.calcsize("=iqii"):struct.calcsize("=iqii4i")])
-    (packetlen, bufsize, maxtaps, stype) = struct.unpack("=iiii", d[struct.calcsize("=iqii4i"):])
+
+    msg = c2s.SRV_INFO()
+    msg.ParseFromString(d)
+
+    samplerate = msg.samplerate
+    frequency = msg.frequency
+    ppm = msg.ppm
+    fftw = msg.fftw
+    gain = []
+    gain.append(msg.autogain)
+    gain.append(msg.global_gain)
+    gain.append(msg.if_gain)
+    gain.append(msg.bb_gain)
+    packetlen = msg.packetlen
+    bufsize = msg.bufsize
+    maxtaps = msg.maxtaps
+
     print("Remote says: samplerate %i, center frequency: %ik, ppm: %i, gain: %s, fft size: %i"%(samplerate, frequency/1000, ppm, gain, fftw))
     print("             samples per frame: %i, buffer length: %i frames, max FIR len: %i"%(packetlen, bufsize, maxtaps))
     if self.info_callback:

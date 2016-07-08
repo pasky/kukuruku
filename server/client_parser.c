@@ -53,12 +53,8 @@ void msg_running_xlater(tcp_cli_t * me, worker * w) {
 }
 
 void msg_server_info(tcp_cli_t * me) {
-  struct SRV_INFO s;
+  C2s__SRVINFO s = C2S__SRV__INFO__INIT;
 
-  int32_t size = sizeof(s);
-  writen(me->fd, &size, sizeof(size));
-
-  s.t = INFO;
   s.samplerate = samplerate;
   s.frequency = frequency;
   s.ppm = ppm;
@@ -73,7 +69,18 @@ void msg_server_info(tcp_cli_t * me) {
   s.bufsize = BUFSIZE;
   s.maxtaps = MAXTAPS;
 
-  writen(me->fd, &s, size);
+  size_t len = c2s__srv__info__get_packed_size(&s);
+  void * buf = malloc(len);
+  c2s__srv__info__pack(&s, buf);
+
+  uint32_t size = len + sizeof(int32_t);
+
+  writen(me->fd, &size, sizeof(size));
+  int32_t mtype = INFO;
+  writen(me->fd, &mtype, sizeof(mtype));
+  writen(me->fd, buf, len);
+
+  free(buf);
 }
 
 int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {

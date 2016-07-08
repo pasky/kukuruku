@@ -228,8 +228,8 @@ void * socket_write_thr(void * a) {
       } else { // not enabled, awaiting destruction ... check for thread still alive
         int ret = pthread_kill(w->thr, 0);
         if(ret == ESRCH) { // free
+          finished = w;
           SLIST_REMOVE(&worker_head, w, worker, next);
-          //finished = w;
           break;
         }
       }
