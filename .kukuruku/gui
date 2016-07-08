@@ -15,6 +15,6 @@ spectrumoffset=6
 sqltrim=0.2
 sqldelta=1
 afcdecim=5
-afcmult=0.00001
+afcmult=0.1
 preferformat=F32
 modepath=/home/jenda/tmp/kukuruku/client/modes

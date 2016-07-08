@@ -225,6 +225,17 @@ void * socket_write_thr(void * a) {
                     int16_t sample = ((float*)(w->outbuf[bufptr].data))[i] * scale;
                     writen(client->fd, &sample, sizeof(int16_t));
                   }
+                } else if(frm->sampletype == I8) {
+                  plen /= 4;
+                  int32_t size = sizeof(ph) + plen;
+                  writen(client->fd, &size, sizeof(size));
+                  writen(client->fd, &ph, sizeof(ph));
+
+                  float scale = ((float)INT8_MAX)/(w->maxval);
+                  for(int i = 0; i<((plen*4)/sizeof(float)); i++) {
+                    int8_t sample = ((float*)(w->outbuf[bufptr].data))[i] * scale;
+                    writen(client->fd, &sample, sizeof(int8_t));
+                  }
                 }
                 willwait = false;
               }

@@ -371,11 +371,16 @@ class client():
         #datacut = struct.pack("=%if"%n, *flts)
 
         # numpy impl
-        buf = np.frombuffer(d[hlen:], dtype=np.dtype("h"))
-        buf = buf.astype(np.dtype("f"))
+        buf = np.frombuffer(d[hlen:], dtype=np.dtype("=h"))
+        buf = buf.astype(np.dtype("=f"))
         buf = buf/32767
         datacut = buf
-
+      elif stype == c2s.I8:
+        n = (len(d) - hlen) / struct.calcsize("=b")
+        buf = np.frombuffer(d[hlen:], dtype=np.dtype("=b"))
+        buf = buf.astype(np.dtype("=f"))
+        buf = buf/127
+        datacut = buf
       else:
         raise Exception("Unsupported sample type %i"%stype)
 
@@ -462,6 +467,8 @@ class client():
       msg.type = c2s.F32
     elif sampleformat == "I16":
       msg.type = c2s.I16
+    elif sampleformat == "I8":
+      msg.type = c2s.I8
     else:
       raise Exception("Bad sample format %s"%sampleformat)
 
