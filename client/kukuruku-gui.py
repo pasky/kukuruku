@@ -278,8 +278,8 @@ def find_wid(wid):
 def make_panel(wid, offset, bw, filtertype, transition, sql, afc):
   """ Create new xlater in model """
   model.append(None)
-  model[-1] = [int(wid), int(offset), filtertype, int(transition),
-               int(bw), afc, sql, int(frequency + offset)]
+  model[-1] = [int(wid), libutil.safe_cast(offset, int, 0), filtertype, libutil.safe_cast(transition, int, 0),
+               libutil.safe_cast(bw, int, 0), afc, sql, libutil.safe_cast(frequency + offset, int, 0)]
 
 def da_expose_event(widget, event):
   """ Refresh display area on expose """

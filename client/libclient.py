@@ -9,6 +9,7 @@ import Queue
 import socket
 import threading
 import time
+import sys
 import math
 import subprocess
 import numpy as np
@@ -427,13 +428,15 @@ class client():
         left = np.sum(acc[:fftlen/2])  # sum power in the lower and upper part of the spectrum
         right = np.sum(acc[fftlen/2:])
 
-        delta = (right-left) / (iters * (right+left)) * iircoef
-        print("AFC change %f"%(delta))
+        divisor = (iters * (right+left))
+        if abs(divisor) >= sys.float_info.epsilon:
+          delta = (right-left) / divisor * iircoef
+          print("AFC change %f"%(delta))
 
-        self.modify_xlater(wid, self.xlaters[wid].rotate + delta, None) # modify rotator with it
+          self.modify_xlater(wid, self.xlaters[wid].rotate + delta, None) # modify rotator with it
 
-        if self.xlater_callback:
-          self.xlater_callback()
+          if self.xlater_callback:
+            self.xlater_callback()
 
       qs = self.xlaters[wid].data.qsize()
       if qs >= 50 and qs % 50 == 0:
