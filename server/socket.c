@@ -18,6 +18,7 @@
 #include "socket.h"
 #include "util.h"
 #include "client_parser.h"
+#include "bits.h"
 
 SLIST_HEAD(tcp_cli_head_t, tcp_cli_t) tcp_cli_head = SLIST_HEAD_INITIALIZER(tcp_cli_head);
 extern pthread_mutex_t llmutex;
@@ -140,7 +141,7 @@ void * client_read_thr(void * param) {
 
   while(1) {
     int32_t size;
-    ret = readn(me->fd, &size, sizeof(int32_t));
+    ret = readn(me->fd, &size, sizeof(int32_t)); LE32(&size);
     if(ret <= 0) {
       break;
     }

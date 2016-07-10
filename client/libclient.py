@@ -46,6 +46,8 @@ class proto():
   PAYLOAD_SPECTRUM = -1
   PAYLOAD_HISTO = -2
 
+  ENDIAN = "<"
+
 def mylog(s):
   print(s)
 
@@ -167,21 +169,21 @@ class client():
     self.tcp_s_t.daemon = True
     self.tcp_s_t.start()
 
-    msg = struct.pack("=i", proto.GET_INFO)
+    msg = struct.pack(proto.ENDIAN+"i", proto.GET_INFO)
     self.q_msg(msg)
 
   def enable_spectrum(self):
-    msg = struct.pack("<i", proto.ENABLE_SPECTRUM)
+    msg = struct.pack(proto.ENDIAN+"i", proto.ENABLE_SPECTRUM)
     self.q_msg(msg)
   def enable_histo(self):
-    msg = struct.pack("<i", proto.ENABLE_HISTO)
+    msg = struct.pack(proto.ENDIAN+"i", proto.ENABLE_HISTO)
     self.q_msg(msg)
 
   def disable_spectrum(self):
-    msg = struct.pack("<i", proto.DISABLE_SPECTRUM)
+    msg = struct.pack(proto.ENDIAN+"i", proto.DISABLE_SPECTRUM)
     self.q_msg(msg)
   def disable_histo(self):
-    msg = struct.pack("<i", proto.DISABLE_HISTO)
+    msg = struct.pack(proto.ENDIAN+"i", proto.DISABLE_HISTO)
     self.q_msg(msg)
 
   def disconnect(self):
@@ -193,13 +195,13 @@ class client():
      startframe -- first frame to record, -1 for current frame
      duration -- how many frames to record.
     """
-    hdr = struct.pack("=i", proto.RECORD_START)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.RECORD_START)
 
     msg = c2s.CLI_RECORD_START()
     msg.startframe = startframe
     msg.stopframe = duration
 
-    self.q_msg(hdr + msg)
+    self.q_msg(hdr + msg.SerializeToString())
 
   def create_xlater(self, rotate, decimation, taps, program, history):
     """ Create a new xlater on the server.
@@ -228,7 +230,7 @@ class client():
 
     msg.taps.extend(taps)
 
-    hdr = struct.pack("=i", proto.CREATE_XLATER)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.CREATE_XLATER)
     self.q_msg(hdr + msg.SerializeToString())
 
     self.xln += 1
@@ -244,7 +246,7 @@ class client():
 
     self.xlaters[xid].rotate = rotate
 
-    hdr = struct.pack("=i", proto.MODIFY_XLATER)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.MODIFY_XLATER)
 
     msg = c2s.CLI_MODIFY_XLATER()
     msg.localid = xid
@@ -259,7 +261,7 @@ class client():
 
   def destroy_xlater(self, xid):
     """ Remove an xlater from the remote server. """
-    hdr = struct.pack("=i", proto.DESTROY_XLATER)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.DESTROY_XLATER)
 
     msg = c2s.CLI_DESTROY_XLATER()
     msg.id = xid
@@ -340,17 +342,19 @@ class client():
   def process_payload(self, d):
     """ Process a message from server. """
 
-    hlen = struct.calcsize("=4i")
+    hlen = struct.calcsize(proto.ENDIAN+"4i")
 
-    (wid, time, frameno, stype) = struct.unpack("=4i", d[:hlen])
+    (wid, time, frameno, stype) = struct.unpack(proto.ENDIAN+"4i", d[:hlen])
 
     if wid == proto.PAYLOAD_SPECTRUM: # spectrum, call fft_callback
       if self.fft_callback:
-        self.fft_callback(d[hlen:], frameno, time)
+        flts = struct.unpack(proto.ENDIAN+"%if"%(len(d[hlen:])/struct.calcsize(proto.ENDIAN+"f")), d[hlen:])
+        self.fft_callback(flts, frameno, time)
 
     elif wid == proto.PAYLOAD_HISTO: # histogram, call histo_callback
       if self.histo_callback:
-        self.histo_callback(d[hlen:])
+        d = struct.unpack(proto.ENDIAN+"%iH"%(len(d[hlen:])/struct.calcsize(proto.ENDIAN+"H")), d[hlen:])
+        self.histo_callback(d)
 
     elif wid >= 0: # channel data
       self.xlaters_lock.acquire()
@@ -369,7 +373,7 @@ class client():
       if stype == c2s.F32:
         datacut = d[hlen:]
       elif stype == c2s.I16:
-        n = (len(d) - hlen) / struct.calcsize("=h")
+        n = (len(d) - hlen) / struct.calcsize(proto.ENDIAN+"h")
 
         # We need to do rescaling, as some GnuRadio blocks, e.g. MPSK demod,
         # expect floats in sane range approx. [-1, 1] or at least ~[-10, 10].
@@ -382,13 +386,13 @@ class client():
         #datacut = struct.pack("=%if"%n, *flts)
 
         # numpy impl
-        buf = np.frombuffer(d[hlen:], dtype=np.dtype("=h"))
+        buf = np.frombuffer(d[hlen:], dtype=np.dtype(proto.ENDIAN+"h"))
         buf = buf.astype(np.dtype("=f"))
         buf = buf/32767
         datacut = buf
       elif stype == c2s.I8:
-        n = (len(d) - hlen) / struct.calcsize("=b")
-        buf = np.frombuffer(d[hlen:], dtype=np.dtype("=b"))
+        n = (len(d) - hlen) / struct.calcsize(proto.ENDIAN+"b")
+        buf = np.frombuffer(d[hlen:], dtype=np.dtype(proto.ENDIAN+"b"))
         buf = buf.astype(np.dtype("=f"))
         buf = buf/127
         datacut = buf
@@ -471,7 +475,7 @@ class client():
       self.info_callback(samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps)
 
   def enable_xlater(self, idx, sampleformat = "F32"):
-    hdr = struct.pack("=i", proto.ENABLE_XLATER)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.ENABLE_XLATER)
 
     msg = c2s.CLI_ENABLE_XLATER()
     msg.id = idx
@@ -488,7 +492,7 @@ class client():
     self.q_msg(hdr + msg.SerializeToString())
 
   def disable_xlater(self, idx):
-    hdr = struct.pack("=i", proto.DISABLE_XLATER)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.DISABLE_XLATER)
 
     msg = c2s.CLI_DISABLE_XLATER()
     msg.id = idx
@@ -496,11 +500,11 @@ class client():
     self.q_msg(hdr + msg.SerializeToString())
 
   def list_xlaters(self):
-    msg = struct.pack("=i", proto.LIST_XLATERS)
+    msg = struct.pack(proto.ENDIAN+"i", proto.LIST_XLATERS)
     self.q_msg(msg)
 
   def set_frequency(self, f):
-    hdr = struct.pack("=i", proto.RETUNE)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.RETUNE)
 
     msg = c2s.CLI_RETUNE()
     msg.freq = libutil.safe_cast(f, int)
@@ -520,7 +524,7 @@ class client():
      The only parameter is a list of at least one element. The last element of the list is extended so
       the list has at least four elements.
     """
-    hdr = struct.pack("=i", proto.SET_GAIN)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.SET_GAIN)
 
     msg = c2s.CLI_SET_GAIN()
     msg.autogain = gain[min(len(gain)-1, 0)]
@@ -531,7 +535,7 @@ class client():
     self.q_msg(hdr + msg.SerializeToString())
 
   def set_ppm(self, ppm):
-    hdr = struct.pack("=i", proto.SET_PPM)
+    hdr = struct.pack(proto.ENDIAN+"i", proto.SET_PPM)
 
     msg = c2s.CLI_SET_PPM()
     msg.ppm = ppm
@@ -557,7 +561,7 @@ class client():
     while True:
       s = cl.msgq.get()
       l = len(s)
-      h = struct.pack("=i", l)
+      h = struct.pack(proto.ENDIAN+"i", l)
       cl.sock.sendall(h)
       cl.sock.sendall(s)
 
@@ -580,12 +584,12 @@ class client():
       d = cl.getdata(cl.sock, 4)
       if len(d) < 4:
         raise Exception("Short read from socket -- connection lost?")
-      l = struct.unpack("=i", d[:4])[0]
+      l = struct.unpack(proto.ENDIAN+"i", d[:4])[0]
       d = cl.getdata(cl.sock, l)
       if len(d) < 4:
         raise Exception("Short read from socket -- connection lost?")
       #hexdump(d)
-      dtype = struct.unpack("=i", d[:4])[0]
+      dtype = struct.unpack(proto.ENDIAN+"i", d[:4])[0]
       if dtype == proto.RUNNING_XLATER:
         cl.srv_running_xlater(d[4:])
       elif dtype == proto.PAYLOAD:

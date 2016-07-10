@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
+#include <endian.h>
 
 #include <err.h>
 
@@ -25,6 +26,7 @@
 #include "client_parser.h"
 #include "metadata.h"
 #include "server.h"
+#include "bits.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -205,29 +207,37 @@ void * socket_write_thr(void * a) {
 
                 struct SRV_PAYLOAD_HEADER ph;
 
-                ph.t = PAYLOAD;
-                ph.id = w->wid;
-                ph.type = frm->sampletype;
+                ph.t = PAYLOAD;             LE32(&(ph.t));
+                ph.id = w->wid;             LE32(&(ph.id));
+                ph.type = frm->sampletype;  LE32(&(ph.type));
 
                 if(frm->sampletype == F32) {
-                  int32_t size = sizeof(ph) + plen;
+                  int32_t size = sizeof(ph) + plen; LE32(&size);
                   writen(client->fd, &size, sizeof(size));
                   writen(client->fd, &ph, sizeof(ph));
+#if TARGET_ENDIAN == OUR_ENDIAN
                   writen(client->fd, w->outbuf[bufptr].data, plen);
+#else
+                  for(int i = 0; i<(plen/sizeof(float)); i++) {
+                    float sample = ((float*)(w->outbuf[bufptr].data))[i]; LE32(&sample);
+                    writen(client->fd, &sample, sizeof(sample));
+                  }
+#endif
                 } else if(frm->sampletype == I16) {
                   plen /= 2;
-                  int32_t size = sizeof(ph) + plen;
+                  int32_t size = sizeof(ph) + plen; LE32(&size);
                   writen(client->fd, &size, sizeof(size));
                   writen(client->fd, &ph, sizeof(ph));
 
                   float scale = ((float)INT16_MAX)/(w->maxval);
                   for(int i = 0; i<(plen*2/sizeof(float)); i++) {
                     int16_t sample = ((float*)(w->outbuf[bufptr].data))[i] * scale;
+                    LE16(&sample);
                     writen(client->fd, &sample, sizeof(int16_t));
                   }
                 } else if(frm->sampletype == I8) {
                   plen /= 4;
-                  int32_t size = sizeof(ph) + plen;
+                  int32_t size = sizeof(ph) + plen; LE32(&size);
                   writen(client->fd, &size, sizeof(size));
                   writen(client->fd, &ph, sizeof(ph));
 
@@ -278,28 +288,42 @@ void * socket_write_thr(void * a) {
         if(client->spectrum) {
           int plen = sdr_inbuf[bufptr].spectrumsize;
           struct SRV_PAYLOAD_HEADER ph;
-          int32_t size = sizeof(ph) + plen;
-          ph.t = PAYLOAD;
-          ph.time = sdr_inbuf[bufptr].timestamp;
-          ph.frameno = sdr_inbuf[bufptr].frameno;
-          ph.id = SPECTRUM;
+          int32_t size = sizeof(ph) + plen;       LE32(&size);
+          ph.t = PAYLOAD;                         LE32(&(ph.t));
+          ph.time = sdr_inbuf[bufptr].timestamp;  LE32(&(ph.time));
+          ph.frameno = sdr_inbuf[bufptr].frameno; LE32(&(ph.frameno));
+          ph.id = SPECTRUM;                       LE32(&(ph.id));
           writen(client->fd, &size, sizeof(size));
           writen(client->fd, &ph, sizeof(ph));
+#if TARGET_ENDIAN == OUR_ENDIAN
           writen(client->fd, sdr_inbuf[bufptr].spectrum, plen);
-
+#else
+          for(int i = 0; i<plen/sizeof(float); i++) {
+            float sample = ((float*)(sdr_inbuf[bufptr].spectrum))[i];
+            LE32(&sample);
+            writen(client->fd, &sample, sizeof(sample));
+          }
+#endif
           willwait = false;
         }
         if(client->histo) {
           int plen = HISTOGRAM_RES * sizeof(uint16_t);
           struct SRV_PAYLOAD_HEADER ph;
-          int32_t size = sizeof(ph) + plen;
-          ph.t = PAYLOAD;
-          ph.time = sdr_inbuf[bufptr].timestamp;
-          ph.id = HISTO;
+          int32_t size = sizeof(ph) + plen;         LE32(&size);
+          ph.t = PAYLOAD;                           LE32(&(ph.t));
+          ph.time = sdr_inbuf[bufptr].timestamp;    LE32(&(ph.time));
+          ph.id = HISTO;                            LE32(&(ph.id));
           writen(client->fd, &size, sizeof(size));
           writen(client->fd, &ph, sizeof(ph));
+#if TARGET_ENDIAN == OUR_ENDIAN
           writen(client->fd, sdr_inbuf[bufptr].histo, plen);
-
+#else
+          for(int i = 0; i<plen/sizeof(uint16_t); i++) {
+            uint16_t sample = ((uint16_t*)(sdr_inbuf[bufptr].histo))[i];
+            LE16(&sample);
+            writen(client->fd, &sample, sizeof(sample));
+          }
+#endif
           willwait = false;
         }
       }

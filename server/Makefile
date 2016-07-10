@@ -5,7 +5,7 @@ CFLAGS = -pedantic -pthread -std=gnu99 -Wall -lprotobuf-c -lm -lvolk -lfftw3f -O
 
 all: c2s.pb-c.h server
 
-OTHINGS = xlate_worker.o server.o socket.o util.o client_parser.o metadata.o c2s.pb-c.o
+OTHINGS = xlate_worker.o server.o socket.o util.o client_parser.o metadata.o c2s.pb-c.o bits.o
 
 c2s.pb-c.h:
 	protoc-c --c_out=. c2s.proto

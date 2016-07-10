@@ -155,8 +155,8 @@ def fft_cb(d, frameno, timestamp):
   global wfofs, lastfft, fft_lastshowntime, conf
 
   data = None
-  while(len(d) > 0):
-    data = struct.unpack("=%if"%conf.fftw, d[:conf.fftw*struct.calcsize("=f")])
+  while(len(d) >= conf.fftw):
+    data = d[:conf.fftw]
     for i in range(0, len(data)):
       idx = float2color(data[i])
       screen.set_at((conf.borderleft+i, wfofs), colormap[idx])
@@ -182,9 +182,8 @@ def fft_cb(d, frameno, timestamp):
       screen.blit(label, (0, ypos))
       fft_lastshowntime = timestamp
 
-
     wfofs = (wfofs+1)%da_height
-    d = d[conf.fftw*struct.calcsize("=f"):]
+    d = d[conf.fftw:]
 
   if not lastfft:
     lastfft = data
@@ -226,9 +225,8 @@ def sql_cb(rotation, decimation):
   return False
 
 
-def histo_cb(data):
+def histo_cb(d):
   """ Display histogram data """
-  d = struct.unpack("=%iH"%conf.histobars, data[:conf.histobars*struct.calcsize("=H")])
   xlim = max(d)
   for i in range(0, conf.histobars):
     bar = d[i]*conf.histow/xlim
@@ -435,14 +433,14 @@ def on_freq_change(widget, event):
   return True
 
 def on_freq_plus(widget):
-  """ Frequency ">" button """
+  """ Frequency '>' button """
   global frequency
   frequency = frequency + samplerate*0.8
   cl.set_frequency(frequency)
   tb_freq.set_text(str(frequency))
 
 def on_freq_minus(widget):
-  """ Frequency "<" button """
+  """ Frequency '<' button """
   global frequency
   frequency = frequency - samplerate*0.8
   cl.set_frequency(frequency)

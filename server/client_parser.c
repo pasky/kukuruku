@@ -11,6 +11,8 @@
 
 #include "c2s.pb-c.h"
 
+#include "bits.h"
+
 extern pthread_mutex_t datamutex;
 extern pthread_mutex_t llmutex;
 extern SLIST_HEAD(worker_head_t, worker) worker_head;
@@ -42,10 +44,10 @@ void msg_running_xlater(tcp_cli_t * me, worker * w) {
   void * buf = malloc(len);
   c2s__srv__running__xlater__pack(&s, buf);
 
-  uint32_t size = len + sizeof(int32_t);
+  uint32_t size = len + sizeof(int32_t); LE32(&size);
 
   writen(me->fd, &size, sizeof(size));
-  int32_t mtype = RUNNING_XLATER;
+  int32_t mtype = RUNNING_XLATER; LE32(&mtype);
   writen(me->fd, &mtype, sizeof(mtype));
   writen(me->fd, buf, len);
 
@@ -73,10 +75,10 @@ void msg_server_info(tcp_cli_t * me) {
   void * buf = malloc(len);
   c2s__srv__info__pack(&s, buf);
 
-  uint32_t size = len + sizeof(int32_t);
+  uint32_t size = len + sizeof(int32_t); LE32(&size);
 
   writen(me->fd, &size, sizeof(size));
-  int32_t mtype = INFO;
+  int32_t mtype = INFO; LE32(&mtype);
   writen(me->fd, &mtype, sizeof(mtype));
   writen(me->fd, buf, len);
 
@@ -84,7 +86,7 @@ void msg_server_info(tcp_cli_t * me) {
 }
 
 int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
-  int type = ((int*)buf2)[0];
+  int type = ((int*)buf2)[0]; LE32(&type);
 
   const uint8_t * buf = buf2 + sizeof(int32_t);
   len -= sizeof(int32_t); // strip message type
