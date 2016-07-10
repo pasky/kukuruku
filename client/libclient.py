@@ -490,7 +490,7 @@ class client():
     hdr = struct.pack("=i", proto.RETUNE)
 
     msg = c2s.CLI_RETUNE()
-    msg.freq = f
+    msg.freq = libutil.safe_cast(f, int)
 
     self.q_msg(hdr + msg.SerializeToString())
 
