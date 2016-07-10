@@ -565,8 +565,12 @@ class client():
     """ Read messages from server, dispatch them to respective handlers """
     while True:
       d = cl.getdata(cl.sock, 4)
+      if len(d) < 4:
+        raise Exception("Short read from socket -- connection lost?")
       l = struct.unpack("=i", d[:4])[0]
       d = cl.getdata(cl.sock, l)
+      if len(d) < 4:
+        raise Exception("Short read from socket -- connection lost?")
       #hexdump(d)
       dtype = struct.unpack("=i", d[:4])[0]
       if dtype == proto.RUNNING_XLATER:
