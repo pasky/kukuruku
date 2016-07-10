@@ -542,7 +542,8 @@ cl.set_auto_enable_xlater(True, conf.preferformat)
 cl.set_info_callback(info_cb)
 cl.connect(conf.HOST, conf.PORT)
 cl.set_afc_params(conf.afcdecim, conf.afcmult)
-
+cl.enable_histo()
+cl.enable_spectrum()
 
 modes = read_modes(os.getenv('HOME') + '/.kukuruku/modes')
 

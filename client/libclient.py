@@ -168,9 +168,19 @@ class client():
 
     msg = struct.pack("=i", proto.GET_INFO)
     self.q_msg(msg)
-    msg = struct.pack("=i", proto.ENABLE_SPECTRUM)
+
+  def enable_spectrum(self):
+    msg = struct.pack("<i", proto.ENABLE_SPECTRUM)
     self.q_msg(msg)
-    msg = struct.pack("=i", proto.ENABLE_HISTO)
+  def enable_histo(self):
+    msg = struct.pack("<i", proto.ENABLE_HISTO)
+    self.q_msg(msg)
+
+  def disable_spectrum(self):
+    msg = struct.pack("<i", proto.DISABLE_SPECTRUM)
+    self.q_msg(msg)
+  def disable_histo(self):
+    msg = struct.pack("<i", proto.DISABLE_HISTO)
     self.q_msg(msg)
 
   def disconnect(self):
