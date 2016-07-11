@@ -36,6 +36,7 @@ enum command_type {
   DUMPED = 257;
   RUNNING_XLATER = 258;
   INFO = 259;
+  DESTROYED_XLATER = 260;
 }
 
 message CLI_CREATE_XLATER {
@@ -119,3 +120,6 @@ message SRV_INFO {
   required int32 maxtaps = 11;
 }
 
+message SRV_DESTROYED_XLATER {
+  required int32 id = 1;
+}

@@ -37,6 +37,7 @@ typedef enum command_type {
   DUMPED = 257,
   RUNNING_XLATER = 258,
   INFO = 259,
+  DESTROYED_XLATER = 260,
   
 } command_type;
 

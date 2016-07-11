@@ -119,6 +119,32 @@ void msg_server_info(tcp_cli_t * me, bool toall) {
   free(buf);
 }
 
+void msg_destroyed_xlater(int32_t xid) {
+  C2s__SRVDESTROYEDXLATER s = C2S__SRV__DESTROYED__XLATER__INIT;
+
+  pthread_mutex_lock(&llmutex);
+
+  s.id = xid;
+
+  size_t len = c2s__srv__destroyed__xlater__get_packed_size(&s);
+  void * buf = malloc(len);
+  c2s__srv__destroyed__xlater__pack(&s, buf);
+
+  uint32_t size = len + sizeof(int32_t); LE32(&size);
+  int32_t mtype = DESTROYED_XLATER; LE32(&mtype);
+
+  tcp_cli_t * client;
+  SLIST_FOREACH(client, &tcp_cli_head, next) {
+    writen(client->fd, &size, sizeof(size));
+    writen(client->fd, &mtype, sizeof(mtype));
+    writen(client->fd, buf, len);
+  }
+
+  pthread_mutex_unlock(&llmutex);
+
+  free(buf);
+}
+
 int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
   int type = ((int*)buf2)[0]; LE32(&type);
 
@@ -251,6 +277,8 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
     }
 
     pthread_mutex_unlock(&llmutex);
+
+    msg_destroyed_xlater(s->id);
 
     c2s__cli__destroy__xlater__free_unpacked(s, NULL);
 

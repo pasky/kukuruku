@@ -42,6 +42,7 @@ class proto():
   DUMPED = 257
   RUNNING_XLATER = 258
   INFO = 259
+  DESTROYED_XLATER = 260
 
   PAYLOAD_SPECTRUM = -1
   PAYLOAD_HISTO = -2
@@ -343,6 +344,24 @@ class client():
 
     print("running xlater %i"%msg.id)
 
+  def srv_destroyed_xlater(self, packet):
+    """ Respond to SRV_DESTROYED_XLATER message. We remove the xlater """
+
+    msg = c2s.SRV_DESTROYED_XLATER()
+    msg.ParseFromString(packet)
+
+    self.xlaters_lock.acquire()
+
+    if msg.id in self.xlaters.keys(): # updating existing xlater
+      del(self.xlaters[msg.id])
+
+    if self.xlater_callback:
+      self.xlater_callback()
+
+    self.xlaters_lock.release()
+
+    print("running xlater %i"%msg.id)
+
   def process_payload(self, d):
     """ Process a message from server. """
 
@@ -478,6 +497,11 @@ class client():
     if self.info_callback:
       self.info_callback(samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps)
 
+    if self.xlater_callback:
+      self.xlaters_lock.acquire()
+      self.xlater_callback()
+      self.xlaters_lock.release()
+
   def enable_xlater(self, idx, sampleformat = "F32"):
     hdr = struct.pack(proto.ENDIAN+"i", proto.ENABLE_XLATER)
 
@@ -596,6 +620,8 @@ class client():
       dtype = struct.unpack(proto.ENDIAN+"i", d[:4])[0]
       if dtype == proto.RUNNING_XLATER:
         cl.srv_running_xlater(d[4:])
+      elif dtype == proto.DESTROYED_XLATER:
+        cl.srv_destroyed_xlater(d[4:])
       elif dtype == proto.PAYLOAD:
         cl.process_payload(d[4:])
       elif dtype == proto.INFO:
