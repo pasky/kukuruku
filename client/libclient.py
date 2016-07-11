@@ -321,11 +321,15 @@ class client():
 
     self.xlaters_lock.acquire()
 
-    if msg.remoteid in self.xlater_q.keys():
+    if msg.id in self.xlaters.keys(): # updating existing xlater
+      xl = self.xlaters[msg.id]
+    elif msg.remoteid in self.xlater_q.keys(): # queued xlater
       xl = self.xlater_q[msg.remoteid]
       if self.auto_enable_xlater:
         self.enable_xlater(msg.id, self.preferred_sample_type)
       del(self.xlater_q[msg.remoteid])
+    else: # completely new xlater
+      pass # handled by xlater already allocated
 
     xl.rotate = msg.rotate
     xl.decimation = msg.decimation

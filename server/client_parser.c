@@ -40,22 +40,45 @@ void msg_running_xlater(tcp_cli_t * me, worker * w) {
   s.rotate = w->rotate;
   s.decimation = w->decim;
 
+  // First send the new xlater info with provided ID to the originating client
   size_t len = c2s__srv__running__xlater__get_packed_size(&s);
   void * buf = malloc(len);
   c2s__srv__running__xlater__pack(&s, buf);
 
   uint32_t size = len + sizeof(int32_t); LE32(&size);
-
-  writen(me->fd, &size, sizeof(size));
   int32_t mtype = RUNNING_XLATER; LE32(&mtype);
-  writen(me->fd, &mtype, sizeof(mtype));
-  writen(me->fd, buf, len);
+
+  if(me) {
+    writen(me->fd, &size, sizeof(size));
+    writen(me->fd, &mtype, sizeof(mtype));
+    writen(me->fd, buf, len);
+  }
+
+  // then change the ID to -1 and broadcast it to all clients
+  s.remoteid = -1;
+
+  len = c2s__srv__running__xlater__get_packed_size(&s);
+  buf = realloc(buf, len);
+  c2s__srv__running__xlater__pack(&s, buf);
+
+  size = len + sizeof(int32_t); LE32(&size);
+
+  tcp_cli_t * client;
+  SLIST_FOREACH(client, &tcp_cli_head, next) {
+    if(client != me) {
+      writen(client->fd, &size, sizeof(size));
+      writen(client->fd, &mtype, sizeof(mtype));
+      writen(client->fd, buf, len);
+    }
+  }
 
   free(buf);
 }
 
-void msg_server_info(tcp_cli_t * me) {
+void msg_server_info(tcp_cli_t * me, bool toall) {
   C2s__SRVINFO s = C2S__SRV__INFO__INIT;
+
+  pthread_mutex_lock(&llmutex);
 
   s.samplerate = samplerate;
   s.frequency = frequency;
@@ -76,11 +99,22 @@ void msg_server_info(tcp_cli_t * me) {
   c2s__srv__info__pack(&s, buf);
 
   uint32_t size = len + sizeof(int32_t); LE32(&size);
-
-  writen(me->fd, &size, sizeof(size));
   int32_t mtype = INFO; LE32(&mtype);
-  writen(me->fd, &mtype, sizeof(mtype));
-  writen(me->fd, buf, len);
+
+  if(!toall) {
+    writen(me->fd, &size, sizeof(size));
+    writen(me->fd, &mtype, sizeof(mtype));
+    writen(me->fd, buf, len);
+  } else {
+    tcp_cli_t * client;
+    SLIST_FOREACH(client, &tcp_cli_head, next) {
+      writen(client->fd, &size, sizeof(size));
+      writen(client->fd, &mtype, sizeof(mtype));
+      writen(client->fd, buf, len);
+    }
+  }
+
+  pthread_mutex_unlock(&llmutex);
 
   free(buf);
 }
@@ -169,10 +203,15 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
           w->newtapslen = tapslen;
         }
         w->rotate = s->rotate;
+        break;
       }
     }
 
     pthread_mutex_unlock(&llmutex);
+
+    if(w) {
+      msg_running_xlater(me, w);
+    }
 
     c2s__cli__modify__xlater__free_unpacked(s, NULL);
 
@@ -217,9 +256,7 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
 
   } else if(type == GET_INFO) {
 
-    pthread_mutex_lock(&llmutex);
-    msg_server_info(me);
-    pthread_mutex_unlock(&llmutex);
+    msg_server_info(me, false);
     
   } else if(type == RECORD_START) {
     C2s__CLIRECORDSTART *s;
@@ -286,6 +323,8 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
 
     pthread_mutex_unlock(&llmutex);
 
+    msg_server_info(NULL, true);
+
     c2s__cli__set__gain__free_unpacked(s, NULL);
 
   } else if(type == RETUNE) {
@@ -303,6 +342,8 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
 
     pthread_mutex_unlock(&llmutex);
 
+    msg_server_info(NULL, true);
+
     c2s__cli__retune__free_unpacked(s, NULL);
 
   } else if(type == SET_PPM) {
@@ -319,6 +360,8 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
     ppm = s->ppm;
 
     pthread_mutex_unlock(&llmutex);
+
+    msg_server_info(NULL, true);
 
     c2s__cli__set__ppm__free_unpacked(s, NULL);
 
