@@ -269,12 +269,12 @@ class client():
 
     self.xlaters_lock.acquire()
 
-    del(self.xlaters[xid])
+    #del(self.xlaters[xid])
 
     self.q_msg(hdr + msg.SerializeToString())
 
-    if self.xlater_callback:
-      self.xlater_callback()
+    #if self.xlater_callback:
+    #  self.xlater_callback()
 
     self.xlaters_lock.release()
 
@@ -290,6 +290,9 @@ class client():
     """ Thread that read from queue and wites to process stdin """
     while True:
       frame = que.get()
+      if frame == None:
+        process.stdin.close()
+        break
       try:
         process.stdin.write(frame)
       except IOError: # like when we get SIGPIPE on application quit
@@ -352,7 +355,9 @@ class client():
 
     self.xlaters_lock.acquire()
 
-    if msg.id in self.xlaters.keys(): # updating existing xlater
+    if msg.id in self.xlaters.keys():
+      # push None to the feeder thread, it will gracefully exit
+      self.xlaters[msg.id].data.put(None)
       del(self.xlaters[msg.id])
 
     if self.xlater_callback:
