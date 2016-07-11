@@ -241,11 +241,18 @@ def histo_cb(d):
 def xlater_cb():
   """ Write changes in libclient.xlaters to the GUI listview """
   # delete old xlaters
-  xls = cl.get_xlaters()
-  for i in range(0, len(model)):
-    wid = model[i][0]
-    if not wid in xls and wid != -1:
-      del(model[i])
+
+  while True:
+    deleted = False
+    xls = cl.get_xlaters()
+    for i in range(0, len(model)):
+      wid = model[i][0]
+      if not wid in xls and wid != -1:
+        del(model[i])
+        deleted = True
+        break
+    if not deleted:
+      break
 
   # add new, update existing
   for wid in xls:
@@ -602,6 +609,7 @@ def kill_toggle_cb(cell, path):
 
 def xlater_edit(cell, row, new_value, field):
   """ Row in listview changed """
+  cl.acquire_xlaters()
   newcast = libutil.safe_cast(libutil.engnum(new_value), type(model[row][field]))
 
   if not newcast:
@@ -614,7 +622,6 @@ def xlater_edit(cell, row, new_value, field):
   elif field == 1:
     model[row][7] = frequency + newcast
 
-  cl.acquire_xlaters()
   model[row][field] = newcast
   commit_xlater(row)
   cl.release_xlaters()
