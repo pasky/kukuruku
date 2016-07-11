@@ -90,7 +90,7 @@ class client():
 
   def set_fft_callback(self, cb):
     """ Set the function that is called with the following parameters:
-     binary string with array of floats
+     list of floats
      int framenumber (a counter incrementing each frame since the server was started)
      int timestamp (unix timestamp when the frame was captured)
     """

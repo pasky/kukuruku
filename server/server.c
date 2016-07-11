@@ -390,6 +390,7 @@ int main(int argc, char **argv) {
         samplerate = atoi(optarg);
         break;
       case 'g':
+        gain.autogain = 1;
         gain.global_gain = atoi(optarg);
         gain.if_gain = atoi(optarg);
         gain.bb_gain = atoi(optarg);

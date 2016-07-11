@@ -17,16 +17,16 @@ import getopt
 
 class top_block(gr.top_block):
 
-  def __init__(self, device, rate, freq, gain, outpipe):
+  def __init__(self, device, rate, freq, gain, ppm, outpipe):
     gr.top_block.__init__(self, "Top Block")
 
     self.osmosdr_source = osmosdr.source(device)
     self.osmosdr_source.set_sample_rate(int(rate))
     self.osmosdr_source.set_center_freq(int(freq), 0)
-    self.osmosdr_source.set_freq_corr(0, 0)
+    self.osmosdr_source.set_freq_corr(int(ppm), 0)
     self.osmosdr_source.set_dc_offset_mode(0, 0)
     self.osmosdr_source.set_iq_balance_mode(2, 0)
-    self.osmosdr_source.set_gain_mode(False, 0)
+    self.osmosdr_source.set_gain_mode(True, 0)
     self.osmosdr_source.set_gain(int(gain), 0)
     self.osmosdr_source.set_if_gain(int(gain), 0)
     self.osmosdr_source.set_bb_gain(int(gain), 0)
@@ -111,7 +111,7 @@ if (not device) or (not rate) or (not inpipe) or (not outpipe) or \
    (not gain) or (not freq) or (not ppm):
   usage()
 
-tb = top_block(device, rate, freq, gain, outpipe)
+tb = top_block(device, rate, freq, gain, ppm, outpipe)
 
 t = threading.Thread(target=set_param_thr, args=(inpipe, tb))
 t.daemon = True
