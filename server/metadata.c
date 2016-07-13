@@ -80,6 +80,9 @@ void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
       /* Transform */
       fftwf_execute(p);
 
+      /* FFTW computes DFT without scaling by 1/sqrt(N) */
+      float dftscale = 1/sqrtf(fftsize);
+
       /* Read output */
       float * fout = (float *) fftw_out;
       for(int k = 0; k<fftsize; k++) {
@@ -88,14 +91,15 @@ void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
 
         /* We are computing sum(log(hypot(i,q))).
          * We can compute log(prod(hypot(i,q))) and save computationally intesive logarithms */
-        /* gah, numeriacally unstable!
+        /* gah, numerically unstable! probably can be implemented by splitting the float with
+         * frexp(3) and computing exponent separately...
 
         if(j == 0) {
           fftw_avg[k] = hypotf(v1, v2);
         } else {
           fftw_avg[k] *= hypotf(v1, v2);
         }*/
-        fftw_avg[k] += logf(hypotf(v1, v2));
+        fftw_avg[k] += logf(hypotf(v1, v2) * dftscale);
 
       }
 

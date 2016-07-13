@@ -3,17 +3,17 @@ CFLAGS = -pedantic -pthread -std=gnu99 -Wall -lprotobuf-c -lm -lvolk -lfftw3f -O
 
 .PHONY: clean
 
-all: c2s.pb-c.h server
+all: server
 
 OTHINGS = xlate_worker.o server.o socket.o util.o client_parser.o metadata.o c2s.pb-c.o bits.o
 
-c2s.pb-c.h:
+c2s.pb-c.c:
 	protoc-c --c_out=. c2s.proto
 
 %.o: %.c
 	$(CPP) $(CFLAGS) -c $< -o $@ $(INC)
 
-server: $(OTHINGS)
+server: c2s.pb-c.c $(OTHINGS)
 	$(CPP) $(CFLAGS) $(OTHINGS) -o server
 
 clean:

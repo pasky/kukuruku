@@ -500,7 +500,7 @@ class client():
     print("Remote says: samplerate %i, center frequency: %ik, ppm: %i, gain: %s, fft size: %i"%(samplerate, frequency/1000, ppm, gain, fftw))
     print("             samples per frame: %i, buffer length: %i frames, max FIR len: %i"%(packetlen, bufsize, maxtaps))
     if self.info_callback:
-      self.info_callback(samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps)
+      self.info_callback(samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps) #FIXME
 
     if self.xlater_callback:
       self.xlaters_lock.acquire()
@@ -577,14 +577,14 @@ class client():
 
   def Xlater(self):
     """ Structure to hold information about one running xlater
-     float rotate -- rotator in radians per sample
-     int decimation -- the ratio of sdr_samplerate/channel_samplerate
-     bool sql -- apply squelch to this channel
-     bool afc -- apply afc to this channel
-     rid -- local reference ID
-     thread -- feeder thread
-     data -- queue of channel data that are written to program stdin
-     sqlsave -- last frame in case of closed squelch, we use this to replay on frame on opening squelch
+      float rotate -- rotator in radians per sample
+      int decimation -- the ratio of sdr_samplerate/channel_samplerate
+      bool sql -- apply squelch to this channel
+      bool afc -- apply afc to this channel
+      int rid -- local reference ID
+      threading.Thread thread -- feeder thread
+      Queue.Queue data -- queue of channel data that are written to program stdin
+      string sqlsave -- last frame in case of closed squelch, we use this to replay on frame on opening squelch
     """
     XlaterT = libutil.Struct("xlater", "rotate decimation sql afc rid thread data sqlsave")
     return XlaterT(None, None, False, False, None, None, None, None)
