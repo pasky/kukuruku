@@ -23,6 +23,7 @@ typedef struct worker {
   float maxval;
   int tapslen;
   int newtapslen;
+  size_t maxoutsize;
   int32_t remoteid;
   worker_packet outbuf[BUFSIZE];
   SLIST_ENTRY(worker) next;

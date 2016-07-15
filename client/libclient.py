@@ -290,7 +290,7 @@ class client():
     """ Thread that read from queue and wites to process stdin """
     while True:
       frame = que.get()
-      if frame == None:
+      if frame is None:
         process.stdin.close()
         break
       try:

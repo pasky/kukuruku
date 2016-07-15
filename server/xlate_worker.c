@@ -41,6 +41,17 @@ float calc_max_amplitude(float * taps, int tapslen) {
 
 }
 
+float * get_complex_taps(float * taps, int tapslen, float rotate) {
+  size_t align = volk_get_alignment();
+  float * ctaps = volk_malloc(tapslen * COMPLEX * sizeof(float), align);
+
+  for(int i = 0; i<tapslen; i++) {
+    ctaps[COMPLEX*i]     = taps[i] * cos(rotate*i);
+    ctaps[COMPLEX*i + 1] = taps[i] * sin(rotate*i);
+  }
+  return ctaps;
+}
+
 worker * create_xlate_worker(float rotate, int decim, int history, float * taps, int tapslen) {
 
   worker * w = calloc(1, sizeof(worker));
@@ -48,10 +59,12 @@ worker * create_xlate_worker(float rotate, int decim, int history, float * taps,
   w->rotate = rotate;
   w->decim = decim;
   w->wid = widx;
-  w->taps = taps;
+  w->taps = get_complex_taps(taps, tapslen, rotate);
   w->tapslen = tapslen;
 
   w->maxval = calc_max_amplitude(taps, tapslen);
+
+  free(taps);
 
   if(history == -1) {
     w->last_written = sdr_cptr;
@@ -64,12 +77,12 @@ worker * create_xlate_worker(float rotate, int decim, int history, float * taps,
   }
   w->send_cptr = w->last_written;
 
-  int outsize = COMPLEX * sizeof(float) * SDRPACKETSIZE/decim;
+  w->maxoutsize = COMPLEX * sizeof(float) * SDRPACKETSIZE/decim;
   size_t align = volk_get_alignment();
 
   //workers[wid].outbuf = malloc(sizeof(char*) * BUFSIZE);
   for(int i = 0; i<BUFSIZE; i++) {
-    w->outbuf[i].data = volk_malloc(outsize, align);
+    w->outbuf[i].data = volk_malloc(w->maxoutsize, align);
   }
 
   int ret = pthread_create(&w->thr, NULL, &xlate_worker_thr, (void*) w);
@@ -95,6 +108,7 @@ void * xlate_worker_thr(void *ptr) {
 
   int fir_offset = 0;
   float * alldata = calloc(sizeof(float), (SDRPACKETSIZE + MAXTAPS) * COMPLEX);
+  float * firout = calloc(1, ctx->maxoutsize);
   lv_32fc_t phase_inc, phase;
 
   phase = lv_cmake(1.0, 0.0);
@@ -108,34 +122,35 @@ void * xlate_worker_thr(void *ptr) {
     }
     pthread_mutex_unlock(&datamutex);
 
-    phase_inc = lv_cmake(cos(ctx->rotate), sin(ctx->rotate));
+    phase_inc = lv_cmake(cos(ctx->rotate * ctx->decim), sin(ctx->rotate * ctx->decim));
 
     memcpy(alldata, alldata+SDRPACKETSIZE*COMPLEX, MAXTAPS * COMPLEX * sizeof(float));
-
-    volk_32fc_s32fc_x2_rotator_32fc( (lv_32fc_t*)(alldata + MAXTAPS), // dst
-                                     (lv_32fc_t*)(sdr_inbuf[mypos % BUFSIZE].data), // src
-                                     phase_inc, &phase, SDRPACKETSIZE); // params
+    memcpy(alldata + MAXTAPS, sdr_inbuf[mypos % BUFSIZE].data, SDRPACKETSIZE * COMPLEX * sizeof(float));
 
     int outsample = 0;
     int i;
 
     for(i = fir_offset; i<SDRPACKETSIZE; i+=ctx->decim) {
-      volk_32fc_32f_dot_prod_32fc(
-          (lv_32fc_t*) (ctx->outbuf[mypos % BUFSIZE].data + outsample*COMPLEX*sizeof(float)), // dst
+      lv_32fc_t* dst = (lv_32fc_t*) (firout + outsample*COMPLEX);
+      volk_32fc_x2_dot_prod_32fc(dst,
           (lv_32fc_t*) (alldata+(i)*COMPLEX), // src
-          ctx->taps, ctx->tapslen); // filter
+          (lv_32fc_t*)(ctx->taps), ctx->tapslen); // filter
       outsample++;
     }
+    volk_32fc_s32fc_x2_rotator_32fc( (lv_32fc_t*) ctx->outbuf[mypos % BUFSIZE].data, // dst
+        (lv_32fc_t*) firout, phase_inc, &phase, outsample);
+
     fir_offset = i - SDRPACKETSIZE;
     ctx->outbuf[mypos % BUFSIZE].len = outsample * COMPLEX * sizeof(float);
 
     pthread_mutex_lock(&datamutex);
     if(ctx->newtaps != NULL) {
       free(ctx->taps);
-      ctx->taps = ctx->newtaps;
+      ctx->taps = get_complex_taps(ctx->newtaps, ctx->newtapslen, ctx->rotate);
       ctx->tapslen = ctx->newtapslen;
+      ctx->maxval = calc_max_amplitude(ctx->newtaps, ctx->newtapslen);
+      free(ctx->newtaps);
       ctx->newtaps = NULL;
-      ctx->maxval = calc_max_amplitude(ctx->taps, ctx->tapslen);
     }
     if(!ctx->enabled) {
       pthread_mutex_unlock(&datamutex);
