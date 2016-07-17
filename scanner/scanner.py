@@ -57,7 +57,6 @@ def usage():
 
 ppm = 0
 device = ""
-rate = 2048000
 confdir = None
 
 try:
@@ -81,14 +80,15 @@ for opt, arg in opts:
 if not confdir:
   usage()
 
-(fd_r,fd_w) = os.pipe()
-
-sdr = top_block(device, rate, 0, 10, fd_w)
-
 l = util.logger()
 l.setloglevel("DBG")
 
+(fd_r,fd_w) = os.pipe()
+
 scanner = KukurukuScanner.scanner(l, confdir)
+
+sdr = top_block(device, scanner.conf.rate, 0, 10, fd_w)
+
 
 file_r = os.fdopen(fd_r, "rb")
 
