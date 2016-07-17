@@ -80,11 +80,6 @@ class ConfReader():
       except:
         stick = self.stick
 
-      try:
-        pipe = rc.get(MAINSECTION, 'pipe')
-      except:
-        pipe = None
-
       if "freqstart" in rc.options(MAINSECTION): # range randscan
         freqstart = rc.getint(MAINSECTION, "freqstart")*1000 + step/2
         freqstop = rc.getint(MAINSECTION, "freqstop")*1000 - step/2
@@ -97,7 +92,6 @@ class ConfReader():
           frm.floor = floor
           frm.stickactivity = stickactivity
           frm.stick = stick
-          frm.pipe = pipe
           frm.sql = sql
           frm.gain = self.gain
 
@@ -109,10 +103,9 @@ class ConfReader():
 
         frm = cronframe()
         frm.freq = rc.getint(MAINSECTION, "freq")*1000
-        frm.floor = "floor"
+        frm.floor = self.floor
         frm.stickactivity = stickactivity
         frm.stick = stick
-        frm.pipe = pipe
         frm.sql = sql
         frm.gain = self.gain
         frm.cron = rc.get(MAINSECTION, "cron")
@@ -133,7 +126,6 @@ class ConfReader():
         frm.floor = floor
         frm.stickactivity = stickactivity
         frm.stick = stick
-        frm.pipe = pipe
         frm.sql = sql
         frm.gain = self.gain
 
@@ -158,6 +150,11 @@ class ConfReader():
         ch.cont = rc.getint(ssect, "continue")
       except:
         ch.cont = 0
+
+      try:
+        ch.pipe = rc.get(ssect, 'pipe')
+      except:
+        ch.pipe = None
 
       channels.append(ch)
 

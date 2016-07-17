@@ -300,7 +300,7 @@ class client():
 
   def spawn_mode(self, cmd):
     """ Spawn a process cmd, spawn feeder_thr for it, return reference to queue and thread. """
-    process = subprocess.Popen([cmd], stdin=subprocess.PIPE, shell=True)
+    process = subprocess.Popen([cmd], stdin=subprocess.PIPE, shell=True, bufsize=-1)
     que = Queue.Queue()
     t = threading.Thread(target=self.feeder_thr, args=(que, process), name="feeder_thr for %s"%cmd)
     t.daemon = True

@@ -11,13 +11,14 @@ import math
 import numpy as np
 import xlater
 import struct
+import subprocess
 from datetime import datetime
 from libutil import Struct, safe_cast
 
 from gnuradio.filter import firdes
 
 def channelhelper():
-  ChannelHelperT = Struct("channelhelper", "rotator decim rate file taps carry rotpos firpos cylen")
+  ChannelHelperT = Struct("channelhelper", "rotator decim rate file taps carry rotpos firpos cylen fd_r")
   return ChannelHelperT()
 
 COMPLEX64 = 8
@@ -75,7 +76,7 @@ class scanner():
     self.sdrflush()
     peaks = []
     for channel in cronframe.channels:
-      peaks.append((channel.freq-cronframe.freq, channel.bw))
+      peaks.append((channel.freq-cronframe.freq, channel.bw, channel))
 
     self.do_record(peaks, cronframe.cronlen, cronframe.stickactivity, 1, channel.freq, cronframe.floor, None)
 
@@ -114,7 +115,6 @@ class scanner():
 
       ch.decim = math.ceil(self.conf.rate/w)
       ch.rate = self.conf.rate/ch.decim
-      ch.file = os.open(self.getfn(f+center, ch.rate) + ".cfile", os.O_WRONLY|os.O_CREAT)
       ch.rotator = -float(f)/self.conf.rate * 2*math.pi
       ch.rotpos = np.zeros(2, dtype=np.float32)
       ch.rotpos[0] = 1 # start with unit vector
@@ -123,7 +123,15 @@ class scanner():
       ch.firpos = np.zeros(1, dtype=np.int32)
       ch.cylen = len(ch.taps)
       ch.carry = '\0' * ch.cylen
-      self.l.l("Recording %s"%ch.file, "INFO")
+
+      if len(peak) >= 2 and peak[2].pipe is not None:
+        (ch.fd_r, ch.file) = os.pipe()
+        subprocess.Popen([peak[2].pipe], shell=True, stdin=ch.fd_r, bufsize=-1)
+        self.l.l("Recording %i (PIPE)"%f, "INFO")
+      else:
+        ch.file = os.open(self.getfn(f+center, ch.rate) + ".cfile", os.O_WRONLY|os.O_CREAT)
+        self.l.l("Recording %s"%ch.file, "INFO")
+
       helpers.append(ch)
 
     while True:
@@ -154,6 +162,8 @@ class scanner():
 
     for ch in helpers:
       os.close(ch.file)
+      if ch.fd_r:
+        os.close(ch.fd_r)
 
   def check_activity(self, acc, peak, q):
     floor = sorted(acc)[int(q * self.conf.fftw)]

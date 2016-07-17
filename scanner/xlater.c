@@ -35,7 +35,7 @@ int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _ta
   int32_t i;
   int outsample = 0;
 
-  FILE * of = fdopen(fd, "a");
+  FILE * of = fdopen(fd, "w");
   if(of == NULL) {
     perror("fdopen");
     fprintf(stderr, "Cannot open fd %i for writing\n", fd);
