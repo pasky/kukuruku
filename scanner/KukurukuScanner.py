@@ -12,6 +12,7 @@ import numpy as np
 import xlater
 import struct
 import subprocess
+import bisect
 from datetime import datetime
 from libutil import Struct, safe_cast
 
@@ -98,9 +99,29 @@ class scanner():
 
     peaks = self.find_peaks(acc, floor + scanframe.sql)
 
-    # TODO consult blacklist
+    peaks = self.filter_blacklist(peaks, scanframe.freq)
 
     self.do_record(peaks, scanframe.stick, scanframe.stickactivity, self.conf.filtermargin, scanframe.freq, scanframe.floor, sbuf)
+
+  def filter_blacklist(self, peaks, center):
+    ret = []
+    for peak in peaks:
+      f = peak[0]+center-peak[1]/2
+      print(self.conf.blacklist)
+      pos = bisect.bisect(self.conf.blacklist, f)
+
+      if pos >= len(self.conf.blacklist):
+        ret.append(peak)
+        continue
+
+      entry = self.conf.blacklist[pos]
+      if entry-f > peak[1]:
+        ret.append(peak)
+        continue
+
+      self.l.l("Removing blacklisted signal %i"%(peak[0]+center), "INFO")
+
+    return ret
 
   def do_record(self, peaks, stoptime, stickactivity, safetymargin, center, floor, buf):
 
@@ -124,7 +145,7 @@ class scanner():
       ch.cylen = len(ch.taps)
       ch.carry = '\0' * ch.cylen
 
-      if len(peak) >= 2 and peak[2].pipe is not None:
+      if len(peak) >= 3 and peak[2].pipe is not None:
         (ch.fd_r, ch.file) = os.pipe()
         subprocess.Popen([peak[2].pipe], shell=True, stdin=ch.fd_r, bufsize=-1)
         self.l.l("Recording %i (PIPE)"%f, "INFO")

@@ -134,6 +134,19 @@ class ConfReader():
 
         self.scanframes.append(frm)
 
+    # read blacklist
+    self.blacklist = []
+    if os.path.isfile("blacklist.txt"):
+      f = open("blacklist.txt")
+      lines = f.readlines()
+      for line in lines:
+        pieces = line.strip().split(" ")
+        if len(pieces) >= 2:
+          #self.blacklist.append((int(pieces[0]), int(pieces[1])))
+          self.blacklist.append(int(pieces[0]))
+    self.blacklist.sort()
+
+
   def channel_list_from_config(self, rc):
     channels = []
     for ssect in rc.sections():
