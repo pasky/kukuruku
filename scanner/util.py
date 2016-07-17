@@ -15,37 +15,44 @@ import struct
 MAINSECTION = "General"
 
 class ConfReader():
-  def __init__(self, path, samplerate):
+  def __init__(self, path):
 
     # Read global config
     rc = configparser.ConfigParser()
     rc.read(os.path.join(path, "main.conf"))
     self.bufsize = rc.getint(MAINSECTION, 'bufsize')
+    self.rate = rc.getint(MAINSECTION, 'rate')
     self.interval = rc.getint(MAINSECTION, 'interval')
     self.skip = rc.getint(MAINSECTION, 'skip')
     self.fftw = rc.getint(MAINSECTION, 'fftw')
+    self.fftskip = rc.getint(MAINSECTION, 'fftskip')
     self.overlap = rc.getfloat(MAINSECTION, 'overlap')
     self.nonce = rc.get(MAINSECTION, 'nonce')
     self.floor = rc.getfloat(MAINSECTION, 'floor')
     self.sql = rc.getfloat(MAINSECTION, 'sql')
+    self.filtermargin = rc.getfloat(MAINSECTION, 'filtermargin')
     self.transition = rc.getfloat(MAINSECTION, 'transition')
     self.minw = rc.getint(MAINSECTION, 'minw')*1000
     self.maxw = rc.getint(MAINSECTION, 'maxw')*1000
-    self.spacing = rc.getint(MAINSECTION, 'spacing')*1000
+    self.messgain = rc.getint(MAINSECTION, 'messgain')
+    self.mingain = rc.getint(MAINSECTION, 'mingain')
+    self.maxgain = rc.getint(MAINSECTION, 'maxgain')
     self.gain = rc.get(MAINSECTION, 'gain')
-
-    self.samplerate = samplerate
+    self.stickactivity = rc.getboolean(MAINSECTION, 'stickactivity')
+    self.stick = rc.getint(MAINSECTION, 'stick')
 
     files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 
     self.scanframes = []
     self.cronframes = []
 
-    step = float(samplerate) * (1-self.overlap)
+    step = float(self.rate) * (1-self.overlap)
 
     # Read scanframe and channel config files
     for f in files:
       if f == "main.conf":
+        continue
+      if f[-5:] != ".conf":
         continue
 
       print("file %s"%f)
@@ -63,6 +70,21 @@ class ConfReader():
       except:
         sql = self.sql
 
+      try:
+        stickactivity = rc.getboolean(MAINSECTION, 'stickactivity')
+      except:
+        stickactivity = self.stickactivity
+
+      try:
+        stick = rc.getfloat(MAINSECTION, 'stick')
+      except:
+        stick = self.stick
+
+      try:
+        pipe = rc.get(MAINSECTION, 'pipe')
+      except:
+        pipe = None
+
       if "freqstart" in rc.options(MAINSECTION): # range randscan
         freqstart = rc.getint(MAINSECTION, "freqstart")*1000 + step/2
         freqstop = rc.getint(MAINSECTION, "freqstop")*1000 - step/2
@@ -73,6 +95,9 @@ class ConfReader():
           frm = scanframe()
           frm.freq = cf
           frm.floor = floor
+          frm.stickactivity = stickactivity
+          frm.stick = stick
+          frm.pipe = pipe
           frm.sql = sql
           frm.gain = self.gain
 
@@ -85,6 +110,9 @@ class ConfReader():
         frm = cronframe()
         frm.freq = rc.getint(MAINSECTION, "freq")*1000
         frm.floor = "floor"
+        frm.stickactivity = stickactivity
+        frm.stick = stick
+        frm.pipe = pipe
         frm.sql = sql
         frm.gain = self.gain
         frm.cron = rc.get(MAINSECTION, "cron")
@@ -103,6 +131,9 @@ class ConfReader():
         frm = scanframe()
         frm.freq = rc.getint(MAINSECTION, "freq")*1000
         frm.floor = floor
+        frm.stickactivity = stickactivity
+        frm.stick = stick
+        frm.pipe = pipe
         frm.sql = sql
         frm.gain = self.gain
 
@@ -120,7 +151,7 @@ class ConfReader():
       ch = channel()
       ch.freq = rc.getint(ssect, "freq")*1000
       ch.bw = rc.getint(ssect, "bw")*1000
-      taps = firdes.low_pass(1, self.samplerate, ch.bw, ch.bw*self.transition, firdes.WIN_HAMMING)
+      taps = firdes.low_pass(1, self.rate, ch.bw, ch.bw*self.transition, firdes.WIN_HAMMING)
       ch.taps = struct.pack("=%if"%len(taps), *taps)
 
       try:

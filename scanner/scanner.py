@@ -18,10 +18,9 @@ import tempfile
 
 class top_block(gr.top_block):
 
-  def __init__(self, device, rate, freq, gain, outpipe):
+  def __init__(self, device, rate, freq, gain, fd):
     self.rate = rate
     self.gain = gain
-    self.outpipe = outpipe
 
     gr.top_block.__init__(self, "Top Block")
 
@@ -38,17 +37,13 @@ class top_block(gr.top_block):
     self.osmosdr_source.set_antenna("", 0)
     self.osmosdr_source.set_bandwidth(0, 0)
       
-    self.blocks_file_sink = blocks.file_sink(gr.sizeof_gr_complex, outpipe, False)
-    self.blocks_file_sink.set_unbuffered(False)
+    self.blocks_file_descriptor_sink_0 = blocks.file_descriptor_sink(gr.sizeof_float*2, fd)
 
-    self.connect((self.osmosdr_source, 0), (self.blocks_file_sink, 0))    
+    self.connect((self.osmosdr_source, 0), (self.blocks_file_descriptor_sink_0, 0))
 
   # osmosdr.source.get_sample_rate() seems to be broken
   def get_sample_rate(self):
     return self.rate
-
-  def get_outpipe(self):
-    return self.outpipe
 
   def tune(self, f):
     self.osmosdr_source.set_center_freq(int(f), 0)
@@ -86,31 +81,25 @@ for opt, arg in opts:
 if not confdir:
   usage()
 
-#d = tempfile.mkdtemp()
-#outpipe = os.path.join(d, 'fifo')
-outpipe = "/tmp/pipe"
-print("PIPE %s"%outpipe)
+(fd_r,fd_w) = os.pipe()
 
-#os.mkfifo(outpipe)
-
-sdr = top_block(device, rate, 0, 0, outpipe)
+sdr = top_block(device, rate, 0, 10, fd_w)
 
 l = util.logger()
 l.setloglevel("DBG")
 
-scanner = KukurukuScanner.scanner(l, sdr)
+scanner = KukurukuScanner.scanner(l, confdir)
 
-t = threading.Thread(target=scanner.work, args = (confdir,outpipe))
+file_r = os.fdopen(fd_r, "rb")
+
+t = threading.Thread(target=scanner.work, args = (sdr,file_r))
 t.daemon = True
 t.start()
 
 sdr.start()
 
-time.sleep(100000)
-#try:
-#    raw_input('Press Enter to quit: ')
-#except EOFError:
-#    pass
-#tb.stop()
-#tb.wait()
-
+try:
+  raw_input('Press Enter to quit: ')
+except EOFError:
+  pass
+sdr.stop()

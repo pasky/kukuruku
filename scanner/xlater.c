@@ -10,13 +10,12 @@
 
 #define COMPLEX 2
 
-int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _taps, size_t tapslen, int decim, float rotator, char * _rotpos, size_t rotposlen, char * _firpos, size_t firposlen, char * outfile) {
+int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _taps, size_t tapslen, int decim, float rotator, char * _rotpos, size_t rotposlen, char * _firpos, size_t firposlen, int fd) {
 
   assert(rotposlen == sizeof(lv_32fc_t));
   assert(firposlen == sizeof(int32_t));
 
   int * firpos = (int*) _firpos;
-  float * rotpos = (float*) _rotpos;
 
   float * taps = (float*) _taps;
   int nsamples = buflen / (sizeof(float)*COMPLEX);
@@ -36,10 +35,10 @@ int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _ta
   int32_t i;
   int outsample = 0;
 
-  FILE * of = fopen(outfile, "a");
+  FILE * of = fdopen(fd, "a");
   if(of == NULL) {
-    perror("open");
-    fprintf(stderr, "Cannot open %s for writing\n", outfile);
+    perror("fdopen");
+    fprintf(stderr, "Cannot open fd %i for writing\n", fd);
     return 0;
   }
 
@@ -55,8 +54,7 @@ int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _ta
 
   *firpos = i - nsamples;
 
-  fclose(of);
-
+  //fclose(of);
   return 0;
 
 }

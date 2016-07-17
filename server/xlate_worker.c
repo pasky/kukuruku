@@ -172,6 +172,7 @@ void * xlate_worker_thr(void *ptr) {
     free(ctx->newtaps);
   }
   free(alldata);
+  free(firout);
 
   return NULL;
 }

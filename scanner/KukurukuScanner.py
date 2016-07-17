@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import os
 import sys
 import time
 import threading
@@ -9,20 +10,23 @@ import hashlib
 import math
 import numpy as np
 import xlater
+import struct
 from datetime import datetime
 from libutil import Struct, safe_cast
 
+from gnuradio.filter import firdes
+
 def channelhelper():
   ChannelHelperT = Struct("channelhelper", "rotator decim rate file taps carry rotpos firpos cylen")
-  return ChannelHelperT(0.0, 0, 0, [])
+  return ChannelHelperT()
 
 COMPLEX64 = 8
 
 class scanner():
 
-  def __init__(self, l, sdr):
+  def __init__(self, l, confdir):
     self.l = l
-    self.sdr = sdr
+    self.conf = util.ConfReader(confdir)
 
   def croncmp(self, i, frag):
     if frag == "*":
@@ -51,7 +55,7 @@ class scanner():
     ret = self.croncmp(d.minute, pieces[0]) and self.croncmp(d.hour, pieces[1]) and\
           self.croncmp(d.day, pieces[2]) and self.croncmp(d.month, pieces[3]) and\
           self.croncmp(d.weekday() + 1, pieces[4])
-    self.l.l("%s -> %s"%(s, ret))
+    self.l.l("%s -> %s"%(s, ret), "DBG")
     return ret
 
   def find_cronjob(self, cronframes):
@@ -69,86 +73,183 @@ class scanner():
     self.sdr.tune(cronframe.freq)
     self.l.l("cron record: tune %i"%cronframe.freq, "INFO")
     self.sdrflush()
-    helpers = []
+    peaks = []
     for channel in cronframe.channels:
-      ch = channelhelper()
-      ch.decim = math.ceil(self.samplerate / (channel.bw*2))
-      ch.rate = self.samplerate/ch.decim
-      ch.file = self.getfn(channel.freq, ch.rate) + ".cfile"
-      ch.rotator = -float(channel.freq-cronframe.freq)/self.samplerate * 2*math.pi
-      ch.rotpos = np.zeros(2, dtype=np.float32)
-      ch.rotpos[0] = 1 # start with unit vector
-      ch.taps = channel.taps
-      ch.firpos = np.zeros(1, dtype=np.int32)
-      ch.cylen = len(ch.taps)
-      ch.carry = '\0' * ch.cylen
-      helpers.append(ch)
+      peaks.append((channel.freq-cronframe.freq, channel.bw))
 
-    while True:
-      if time.time() - starttime > cronframe.cronlen:
-        for ch in helpers:
-          ch.file.close()
-        return
-
-      # read data from sdr
-      buf = self.pipefile.read(self.conf.bufsize * COMPLEX64)
-
-      # xlate each channel
-      for ch in helpers:
-        xlater.xdump(buf, len(buf), ch.carry, ch.cylen, ch.taps, len(ch.taps),
-                     int(ch.decim), ch.rotator, ch.rotpos, ch.firpos, ch.file)
-        ch.carry = buf[-ch.cylen:]
+    self.do_record(peaks, cronframe.cronlen, cronframe.stickactivity, 1, channel.freq, cronframe.floor, None)
 
   def scan(self, scanframe):
     ''' Find peaks in spectrum, record if specified in allow/blacklist '''
     starttime = time.time()
     self.sdr.tune(scanframe.freq)
     self.sdrflush()
-    self.l.l("scan: tune %i"%scanframe.freq, "INFO")
+    self.l.l("scan: tune %ik"%(scanframe.freq/1000), "INFO")
 
     delta = self.conf.interval - time.time() % self.conf.interval
-    sbuf = self.pipefile.read(int(self.samplerate * COMPLEX64 * delta))
-    iters = 0
+    nbytes = int(self.conf.rate * COMPLEX64 * delta)
+    nbytes -= nbytes % COMPLEX64
+    sbuf = self.pipefile.read(nbytes)
+
+    acc = self.compute_spectrum(sbuf)
+
+    floor = sorted(acc)[int(scanframe.floor * self.conf.fftw)]
+
+    peaks = self.find_peaks(acc, floor + scanframe.sql)
+
+    # TODO consult blacklist
+
+    self.do_record(peaks, scanframe.stick, scanframe.stickactivity, self.conf.filtermargin, scanframe.freq, scanframe.floor, sbuf)
+
+  def do_record(self, peaks, stoptime, stickactivity, safetymargin, center, floor, buf):
+
+    lastact = time.time()
+
+    helpers = []
+    for peak in peaks:
+      ch = channelhelper()
+
+      f = peak[0]
+      w = peak[1]*safetymargin
+
+      ch.decim = math.ceil(self.conf.rate/w)
+      ch.rate = self.conf.rate/ch.decim
+      ch.file = os.open(self.getfn(f+center, ch.rate) + ".cfile", os.O_WRONLY|os.O_CREAT)
+      ch.rotator = -float(f)/self.conf.rate * 2*math.pi
+      ch.rotpos = np.zeros(2, dtype=np.float32)
+      ch.rotpos[0] = 1 # start with unit vector
+      taps = firdes.low_pass(1, self.conf.rate, w/2, w*self.conf.transition, firdes.WIN_HAMMING)
+      ch.taps = struct.pack("=%if"%len(taps), *taps)
+      ch.firpos = np.zeros(1, dtype=np.int32)
+      ch.cylen = len(ch.taps)
+      ch.carry = '\0' * ch.cylen
+      self.l.l("Recording %s"%ch.file, "INFO")
+      helpers.append(ch)
+
+    while True:
+
+      if buf is None:
+        # read data from sdr
+        buf = self.pipefile.read(self.conf.bufsize * COMPLEX64)
+
+      # xlate each channel
+      for ch in helpers:
+        # ta vec s carry je nesmysl, udelal bych workery a ty by to zjistovaly podle ch.file
+        xlater.xdump(buf, len(buf), ch.carry, ch.cylen, ch.taps, len(ch.taps),
+                     int(ch.decim), ch.rotator, ch.rotpos, ch.firpos, ch.file)
+        ch.carry = buf[-ch.cylen:]
+
+      if stickactivity:
+        acc = self.compute_spectrum(buf)
+        for peak in peaks:
+          if self.check_activity(acc, peak, floor):
+            lastact = time.time()
+            self.l.l("%f has activity, continuing"%peak[0], "INFO")
+
+      if time.time() > lastact + stoptime:
+        self.l.l("Record stop", "INFO")
+        break
+
+      buf = None
+
+    for ch in helpers:
+      os.close(ch.file)
+
+  def check_activity(self, acc, peak, q):
+    floor = sorted(acc)[int(q * self.conf.fftw)]
+
+    binhz = self.conf.rate/self.conf.fftw    
+
+    startbin = int(peak[0]/binhz - peak[1]/(2*binhz))
+    stopbin  = int(peak[0]/binhz + peak[1]/(2*binhz))
+
+    for i in range(startbin, stopbin):
+      if acc[i] > floor:
+        return True
+
+    return False
+
+  def compute_spectrum(self, sbuf):
 
     acc = np.zeros(self.conf.fftw)
+    iters = 0
     dt = np.dtype("=c8")
-    for i in range(0, len(sbuf)-self.conf.fftw*8, self.conf.fftw*8): # compute short-time FFTs, sum result to acc
+    for i in range(0, len(sbuf)-self.conf.fftw*COMPLEX64, self.conf.fftw*self.conf.fftskip*COMPLEX64): # compute short-time FFTs, sum result to acc
       buf = np.frombuffer(sbuf, count=self.conf.fftw, dtype=dt, offset = i)
 
       buf = buf*self.window
 
       fft = np.absolute(np.fft.fft(buf))
+
       acc += fft
       iters += 1
 
-    floor = sorted(acc)[int(scanframe.floor * self.conf.fftw)]
+    acc = np.divide(acc, iters)
+    acc = np.log(acc)
 
-    print(acc)
+    # FFT yields a list of positive frequencies and then negative frequencies.
+    # We want it in the "natural" order.
+    acc = acc.tolist()[len(acc)/2:] + acc.tolist()[:len(acc)/2]
 
-    print("read %i"%len(buf))
+    # smooth the result with a simple triangular filter
+    acc2 = [acc[0]]
+
+    for i in range(1, len(acc)-1):
+      acc2.append((acc[i-1]*0.5 + acc[i] + acc[i+1]*0.5) / 2)
+
+    acc2.append(acc[len(acc)-1])
+
+    return acc2
+
+  def find_peaks(self, acc, floor):
+    first = -1
+
+    binhz = self.conf.rate/self.conf.fftw
+
+    minspan = self.conf.minw/binhz
+    maxspan = self.conf.maxw/binhz
+
+    peaks = []
+
+    for i in range(1, len(acc)):
+      if acc[i] > floor and acc[i-1] < floor:
+        first = i
+      if acc[i] < floor and acc[i-1] > floor:
+        if (i-first) >= minspan and (i-first) <= maxspan:
+          f = binhz*(((i+first)/2)-self.conf.fftw/2)
+          w = binhz*(i-first)
+          peaks.append((f, w))
+          self.l.l("signal at %f width %f"%(f, w), "INFO")
+
+    return peaks
 
   def sdrflush(self):
     self.pipefile.read(self.conf.bufsize * COMPLEX64)
 
-  def work(self, confdir, outpipe):
-    self.samplerate = self.sdr.get_sample_rate()
-    self.pipefile = open(outpipe, "rb")
-
-    self.conf = util.ConfReader(confdir, self.samplerate)
+  def work(self, sdr, file_r):
+    self.sdr = sdr
+    self.pipefile = file_r
 
     self.window = np.hamming(self.conf.fftw)
     selframe = None
     reclen = None
     while(True):
+      delta = self.conf.interval - time.time() % self.conf.interval
+      if delta < self.conf.skip:
+        time.sleep(delta)
+
       selframe = self.find_cronjob(self.conf.cronframes)
 
       if selframe:
         self.record_long(selframe)
         continue
 
-      # no cron job now -- pick some frame at random
-      ctime = "%i"%(math.floor(time.time()) / self.conf.interval)
-      idx = int(hashlib.sha256(self.conf.nonce + ctime).hexdigest(), 16) % len(self.conf.scanframes)
-      scanframe = self.conf.scanframes[idx]
-      self.scan(scanframe)
+      if len(self.conf.scanframes) > 0:
+        # no cron job now -- pick some frame at random
+        ctime = "%i"%(math.floor(time.time()) / self.conf.interval)
+        idx = int(hashlib.sha256(self.conf.nonce + ctime).hexdigest(), 16) % len(self.conf.scanframes)
+        scanframe = self.conf.scanframes[idx]
+        self.scan(scanframe)
+      else:
+        time.sleep(delta)
 

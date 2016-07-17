@@ -3,22 +3,20 @@ SWIG = swig3.0
 
 CFLAGS = -Wall -lm -lvolk -std=gnu99 -O3 -g -ggdb3
 
-all: xlater
+all: xlater.py
 
-.PHONY: clean xlater
+.PHONY: clean
 
-xlater: v-swig v-wrap v-so
-
-v-swig: 
+xlater_wrap.c: xlater.c
 	$(SWIG) -python xlater.i
 
-v-wrap: v-swig
+xlater.o: xlater_wrap.c
 	$(CC) $(CFLAGS) -c -fpic xlater.c xlater_wrap.c -I/usr/include/python2.7
 
-v-so: v-wrap
+xlater.py: xlater.o
 	$(CC) $(CFLAGS) -shared xlater.o xlater_wrap.o -o _xlater.so
 
 
 clean:
-	rm later.o _xlater.so xlater_wrap.c xlater_wrap.o
+	rm -f xlater.o _xlater.so xlater_wrap.c xlater_wrap.o xlater.py xlater.pyc
 

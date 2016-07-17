@@ -344,6 +344,8 @@ void * socket_write_thr(void * a) {
     }
 
   }
+
+  return NULL;
 }
 
 void create_read_write_threads() {
