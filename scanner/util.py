@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import configparser
 import os
+import sys
 from framespec import scanframe, cronframe, channel
 import math
 from threading import Lock
@@ -40,13 +41,24 @@ class ConfReader():
     self.gain = rc.get(MAINSECTION, 'gain')
     self.stickactivity = rc.getboolean(MAINSECTION, 'stickactivity')
     self.stick = rc.getint(MAINSECTION, 'stick')
+    self.dumpspectrum = rc.get(MAINSECTION, 'dumpspectrum')
+
+    self.gainpcs = self.gain.split(",")
+    if len(self.gainpcs) != 4:
+      print("Wrong gain string format in configuration %s, should be \"N,N,N,N\""%self.gain)
+      sys.exit(1)
+    if self.messgain < 0 or self.messgain > 3:
+      print("messagin parameter must be an integer from range [0, 3]")
+      sys.exit(1)
+
+    defaultgain = int(self.gainpcs[self.messgain])
 
     files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 
     self.scanframes = []
     self.cronframes = []
 
-    step = float(self.rate) * (1-self.overlap)
+    step = float(self.rate) * (1.0-self.overlap)
 
     # Read scanframe and channel config files
     for f in files:
@@ -84,16 +96,20 @@ class ConfReader():
         freqstart = rc.getint(MAINSECTION, "freqstart")*1000 + step/2
         freqstop = rc.getint(MAINSECTION, "freqstop")*1000 - step/2
         numf = int(math.ceil(float(freqstop - freqstart)/step))
-        delta = float(freqstop - freqstart) / numf
+        if numf == 0: # freqstart == freqstop
+          numf = 1
+          delta = freqstop
+        else:
+          delta = float(freqstop - freqstart) / numf
         cf = freqstart
-        while cf < math.ceil(freqstop):
+        while cf <= math.ceil(freqstop):
           frm = scanframe()
           frm.freq = cf
           frm.floor = floor
           frm.stickactivity = stickactivity
           frm.stick = stick
           frm.sql = sql
-          frm.gain = self.gain
+          frm.gain = defaultgain
 
           self.scanframes.append(frm)
           print("insert %f"%cf)
@@ -107,7 +123,7 @@ class ConfReader():
         frm.stickactivity = stickactivity
         frm.stick = stick
         frm.sql = sql
-        frm.gain = self.gain
+        frm.gain = defaultgain
         frm.cron = rc.get(MAINSECTION, "cron")
         frm.cronlen = rc.getint(MAINSECTION, "cronlen")
         frm.channels = channels
@@ -127,7 +143,7 @@ class ConfReader():
         frm.stickactivity = stickactivity
         frm.stick = stick
         frm.sql = sql
-        frm.gain = self.gain
+        frm.gain = defaultgain
 
         channels = self.channel_list_from_config(rc)
         frm.channels = channels
@@ -135,16 +151,30 @@ class ConfReader():
         self.scanframes.append(frm)
 
     # read blacklist
-    self.blacklist = []
+    bl = []
     if os.path.isfile("blacklist.txt"):
       f = open("blacklist.txt")
       lines = f.readlines()
       for line in lines:
         pieces = line.strip().split(" ")
-        if len(pieces) >= 2:
-          #self.blacklist.append((int(pieces[0]), int(pieces[1])))
-          self.blacklist.append(int(pieces[0]))
-    self.blacklist.sort()
+        if len(pieces) >= 3:
+          if pieces[0] == "h":
+            freq = int(pieces[1])
+            bw = int(pieces[2])/2
+            bl.append((freq-bw, freq+bw))
+
+    self.blacklist = []
+    if len(bl) > 0:
+      # sort and union intervals
+      bl.sort(key=lambda x: x[0])
+      self.blacklist.append(bl[0])
+      for interval in bl[1:]:
+        if self.blacklist[-1][1] < interval[0]:
+          self.blacklist.append(interval)
+        elif self.blacklist[-1][1] == interval[0]:
+          self.blacklist[-1][1] = interval[1]
+
+    print(self.blacklist)
 
 
   def channel_list_from_config(self, rc):

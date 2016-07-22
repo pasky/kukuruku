@@ -24,7 +24,7 @@ def channelhelper():
 
 COMPLEX64 = 8
 
-class scanner():
+class KukurukuScanner():
 
   def __init__(self, l, confdir):
     self.l = l
@@ -35,7 +35,7 @@ class scanner():
       return True
     if frag[:2] == "*/":
       num = safe_cast(frag[2:], int, None)
-      if not num:
+      if not num or num == 0:
         self.l.l("Invalid modulo number %s"%frag[2:], "CRIT")
         return False
       if i % num == 0:
@@ -67,7 +67,16 @@ class scanner():
 
   def getfn(self, f, rate):
     ds = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S')
-    return "%i-%s-%i"%(f, ds, rate)
+    if rate is not None:
+      return "%i-%s-%i"%(f, ds, rate)
+    else:
+      return "%i-%s"%(f, ds)
+
+  def dump_spectrum(self, acc, filename):
+    f = open(filename, "wb")
+    for flt in acc:
+      f.write("%f\n"%flt)
+    f.close()
 
   def record_long(self, cronframe):
     ''' Record selected channels from a scheduled scan '''
@@ -79,14 +88,15 @@ class scanner():
     for channel in cronframe.channels:
       peaks.append((channel.freq-cronframe.freq, channel.bw, channel))
 
-    self.do_record(peaks, cronframe.cronlen, cronframe.stickactivity, 1, channel.freq, cronframe.floor, None)
+    self.do_record(peaks, cronframe.cronlen, cronframe.stickactivity, 1, None, cronframe)
 
   def scan(self, scanframe):
     ''' Find peaks in spectrum, record if specified in allow/blacklist '''
     starttime = time.time()
     self.sdr.tune(scanframe.freq)
+    self.sdr.set_gain(self.conf.messgain, scanframe.gain)
     self.sdrflush()
-    self.l.l("scan: tune %ik"%(scanframe.freq/1000), "INFO")
+    self.l.l("scan: tune %ik, gain %i"%(scanframe.freq/1000, scanframe.gain), "INFO")
 
     delta = self.conf.interval - time.time() % self.conf.interval
     nbytes = int(self.conf.rate * COMPLEX64 * delta)
@@ -95,27 +105,40 @@ class scanner():
 
     acc = self.compute_spectrum(sbuf)
 
+    if self.conf.dumpspectrum == "always":
+      self.dump_spectrum(acc, self.getfn(scanframe.freq, None)+".spectrum.txt")
+
     floor = sorted(acc)[int(scanframe.floor * self.conf.fftw)]
 
     peaks = self.find_peaks(acc, floor + scanframe.sql)
 
     peaks = self.filter_blacklist(peaks, scanframe.freq)
 
-    self.do_record(peaks, scanframe.stick, scanframe.stickactivity, self.conf.filtermargin, scanframe.freq, scanframe.floor, sbuf)
+    if len(peaks) == 0:
+      histo = self.compute_histogram(sbuf[:COMPLEX64*self.conf.fftw])
+      self.update_and_set_gain(scanframe, histo)
+      self.sdr.set_gain(self.conf.messgain, scanframe.gain)
+    else:
+      if self.conf.dumpspectrum == "on_signal":
+        self.dump_spectrum(acc, self.getfn(scanframe.freq, None)+".spectrum.txt")
+      self.do_record(peaks, scanframe.stick, self.conf.filtermargin, sbuf, scanframe)
 
   def filter_blacklist(self, peaks, center):
     ret = []
+    if not self.conf.blacklist:
+      return peaks
+
     for peak in peaks:
-      f = peak[0]+center-peak[1]/2
-      print(self.conf.blacklist)
-      pos = bisect.bisect(self.conf.blacklist, f)
+      f = peak[0]+center
+
+      pos = bisect.bisect(self.conf.blacklist, (f, None))
 
       if pos >= len(self.conf.blacklist):
-        ret.append(peak)
-        continue
+        pos -= 1
 
       entry = self.conf.blacklist[pos]
-      if entry-f > peak[1]:
+
+      if f < entry[0] or f > entry[1]:
         ret.append(peak)
         continue
 
@@ -123,9 +146,23 @@ class scanner():
 
     return ret
 
-  def do_record(self, peaks, stoptime, stickactivity, safetymargin, center, floor, buf):
+  def update_and_set_gain(self, frame, histo):
+    diff = 0
+    # if there is some signal in the highest 10 bins, decrease gain
+    if sum(histo[-10:]) > 0:
+      diff = -1
+    # if there is no signal in the upper half, increase gain
+    if sum(histo[-50:]) == 0:
+      diff = 1
+
+    frame.gain += diff
+    frame.gain = np.clip(frame.gain, self.conf.mingain, self.conf.maxgain)
+
+  def do_record(self, peaks, stoptime, safetymargin, buf, frame):
 
     lastact = time.time()
+    center = frame.freq
+    floor = frame.floor
 
     helpers = []
     for peak in peaks:
@@ -145,21 +182,31 @@ class scanner():
       ch.cylen = len(ch.taps)
       ch.carry = '\0' * ch.cylen
 
+      basename = self.getfn(f+center, ch.rate)
       if len(peak) >= 3 and peak[2].pipe is not None:
         (ch.fd_r, ch.file) = os.pipe()
-        subprocess.Popen([peak[2].pipe], shell=True, stdin=ch.fd_r, bufsize=-1)
-        self.l.l("Recording %i (PIPE)"%f, "INFO")
+        cmdline = peak[2].pipe.replace("_FILENAME_", basename)
+        subprocess.Popen([cmdline], shell=True, stdin=ch.fd_r, bufsize=-1)
+        self.l.l("Recording \"%s\" (PIPE), firlen %i"%(cmdline, len(taps)), "INFO")
       else:
-        ch.file = os.open(self.getfn(f+center, ch.rate) + ".cfile", os.O_WRONLY|os.O_CREAT)
-        self.l.l("Recording %s"%ch.file, "INFO")
+        fullfile = basename + ".cfile"
+        ch.file = os.open(fullfile, os.O_WRONLY|os.O_CREAT)
+        ch.fd_r = None
+        self.l.l("Recording to file \"%s\", firlen %i"%(fullfile, len(taps)), "INFO")
 
       helpers.append(ch)
 
-    while True:
+    while True and len(helpers) > 0:
 
+      # read data from sdr if needed
       if buf is None:
-        # read data from sdr
         buf = self.pipefile.read(self.conf.bufsize * COMPLEX64)
+        if frame.stickactivity:
+          acc = self.compute_spectrum(buf)
+          for peak in peaks:
+            if self.check_activity(acc, peak, floor):
+              lastact = time.time()
+              self.l.l("%f has activity, continuing"%peak[0], "INFO")
 
       # xlate each channel
       for ch in helpers:
@@ -168,16 +215,13 @@ class scanner():
                      int(ch.decim), ch.rotator, ch.rotpos, ch.firpos, ch.file)
         ch.carry = buf[-ch.cylen:]
 
-      if stickactivity:
-        acc = self.compute_spectrum(buf)
-        for peak in peaks:
-          if self.check_activity(acc, peak, floor):
-            lastact = time.time()
-            self.l.l("%f has activity, continuing"%peak[0], "INFO")
-
       if time.time() > lastact + stoptime:
         self.l.l("Record stop", "INFO")
         break
+
+      histo = self.compute_histogram(buf[:COMPLEX64*self.conf.fftw])
+      self.update_and_set_gain(frame, histo)
+      self.sdr.set_gain(self.conf.messgain, frame.gain)
 
       buf = None
 
@@ -199,6 +243,15 @@ class scanner():
         return True
 
     return False
+
+  def compute_histogram(self, sbuf):
+    """ Compute histogram with 100 bins """
+    acc = np.zeros(100)
+    dt = np.dtype("=f4")
+    buf = np.frombuffer(sbuf, dtype=dt)
+    for i in range(0, len(buf)):
+      acc[np.clip(int(buf[i]*99), 0, 99)] += 1
+    return acc
 
   def compute_spectrum(self, sbuf):
 

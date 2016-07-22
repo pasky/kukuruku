@@ -54,6 +54,8 @@ int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _ta
 
   *firpos = i - nsamples;
 
+  free(alldata);
+
   //fclose(of);
   return 0;
 

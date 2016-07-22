@@ -22,6 +22,11 @@ def getfir(samplerate, filtertype, bw, transition, maxtaps):
   """
 
   coefs = None
+
+  if filtertype not in ["hamming", "rcos"]:
+    print("Unknown filter type %s, defaulting to hamming"%xl.filtertype)
+    filtertype = "hamming"
+
   if filtertype == "hamming":
     while True:
       coefs = firdes.low_pass(1, samplerate, bw, transition, firdes.WIN_HAMMING)
@@ -36,8 +41,6 @@ def getfir(samplerate, filtertype, bw, transition, maxtaps):
       print("The requested raised cosine filter of len %i is too long. Limiting to %i."%(transition, maxtaps))
       transition = maxtaps
     coefs = firdes.root_raised_cosine(1, samplerate, bw, 0.35, transition)
-  else:
-    showerror("Unknown filter type %s"%xl.filtertype)
   return coefs
 
 

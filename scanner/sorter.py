@@ -18,7 +18,10 @@ archdir = "archive"
 if not os.path.isdir(archdir):
   os.mkdir(archdir)
 
-filenames = os.listdir(".")
+if len(sys.argv) > 1:
+  filenames = sys.argv[1:]
+else:
+  filenames = os.listdir(".")
 
 for filename in filenames:
   if filename[-6:] != ".cfile":
@@ -31,6 +34,7 @@ for filename in filenames:
   p2 = p[7].split(".")
 
   rate = float(p2[0])
+  freq = int(p[0])
 
   while True:
     print("Filename: %s | bandwidth %ik"%(filename, rate/1000))
@@ -41,7 +45,8 @@ for filename in filenames:
     print("_n) ignore once")
     print("_s) ignore by sorter")
     print("_h) ignore by scanner")
-    c = raw_input('Choice: __ [optional comment]')
+    print("q) just quit")
+    c = raw_input('Choice: __ [optional comment] ')
 
     if c.isdigit():
       modename = modes.keys()[int(c)]
@@ -57,19 +62,28 @@ for filename in filenames:
         print("resample ratio = %f"%resample)
         program += " -r %f"%resample
       process = subprocess.Popen(["cat " + filename + " | " + program], shell=True)
+      process.wait()
+
+    elif c[0] == "q":
+      sys.exit(0)
     elif len(c) >= 2:
       if c[0] == "d":
         os.remove(filename)
       elif c[0] == "a":
-        os.remane(filename, archdir + "/" + filename)
+        os.rename(filename, archdir + "/" + filename)
 
       if c[1] == "s":
-        pass
+        bl = open("blacklist.txt", "a")
+        bl.write("s %i %i %s\n"%(freq, rate, c[3:]))
+        bl.close()
       elif c[1] == "h":
-        pass
+        bl = open("blacklist.txt", "a")
+        bl.write("h %i %i %s\n"%(freq, rate, c[3:]))
+        bl.close()
 
+      break
 
-
-
+    else:
+      print("unknown input %s"%c)
 
 
