@@ -65,7 +65,7 @@ struct current_gain_t gain;
 SLIST_HEAD(worker_head_t, worker) worker_head = SLIST_HEAD_INITIALIZER(worker_head);
 
 // Allocate SDR input buffer
-void allocate_sdr_buf() {
+static void allocate_sdr_buf() {
   size_t align = volk_get_alignment();
   for(int i = 0; i<BUFSIZE; i++) {
     sdr_inbuf[i].data = volk_malloc(COMPLEX * sizeof(float) * SDRPACKETSIZE, align);
@@ -76,7 +76,7 @@ void allocate_sdr_buf() {
   }
 }
 
-void * sdr_read_thr(void * a) {
+static void * sdr_read_thr(void * a) {
   // open the pipe we are reading from
   sdr_pipe = fopen(sdr_pipe_file, "r");
 
@@ -183,7 +183,7 @@ void * sdr_read_thr(void * a) {
   }
 }
 
-void * socket_write_thr(void * a) {
+static void * socket_write_thr(void * a) {
   while(1) {
     // We wish to read packet send_cptr+1
 
@@ -356,7 +356,7 @@ void * socket_write_thr(void * a) {
   return NULL;
 }
 
-void create_read_write_threads() {
+static void create_read_write_threads() {
 
   int ret = pthread_create(&sdr_thread, NULL, &sdr_read_thr, NULL);
   if(ret != 0) {
@@ -372,9 +372,8 @@ void create_read_write_threads() {
 
 }
 
-void usage(char * me) {
-  printf("usage: %s -s rate -p ppm -f frequency -i cmdpipe -o sdrpipe\n", me);
-  printf("\n");
+static void usage(char * me) {
+  printf("usage: %s -s samplerate -p ppm -f frequency -i cmdpipe -o sdrpipe\n", me);
   exit(1);
 }
 
@@ -385,7 +384,7 @@ int main(int argc, char **argv) {
 
   /* Command line opts */
   int opt;
-  while ((opt = getopt(argc, argv, "s:f:p:g:i:o:r:h:t:w:")) != -1) {
+  while ((opt = getopt(argc, argv, "s:f:p:g:i:o:h:t:w:")) != -1) {
     switch (opt) {
       case 's':
         samplerate = atoi(optarg);
@@ -395,9 +394,6 @@ int main(int argc, char **argv) {
         break;
       case 'p':
         ppm = atoi(optarg);
-        break;
-      case 'r':
-        samplerate = atoi(optarg);
         break;
       case 'g':
         gain.autogain = 1;
@@ -425,7 +421,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if(frequency < 0 || samplerate < 0 || ppm == INT32_MIN ||
+  if(frequency < 0 || samplerate <= 0 || ppm == INT32_MIN ||
    sdr_pipe_file == NULL || sdr_cmd_file == NULL) {
     usage(argv[0]);
   }

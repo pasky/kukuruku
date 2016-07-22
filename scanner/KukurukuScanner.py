@@ -88,7 +88,7 @@ class KukurukuScanner():
     for channel in cronframe.channels:
       peaks.append((channel.freq-cronframe.freq, channel.bw, channel))
 
-    self.do_record(peaks, cronframe.cronlen, cronframe.stickactivity, 1, None, cronframe)
+    self.do_record(peaks, cronframe.cronlen, 1, None, cronframe)
 
   def scan(self, scanframe):
     ''' Find peaks in spectrum, record if specified in allow/blacklist '''

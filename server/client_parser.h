@@ -1,3 +1,4 @@
+#pragma once
 #ifndef CLIENT_PARSER_H
 #define CLIENT_PARSER_H
 

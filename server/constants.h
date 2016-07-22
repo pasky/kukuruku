@@ -1,5 +1,5 @@
+#pragma once
 #ifndef CONSTANTS_H
-
 #define CONSTANTS_H
 
 #define SDRPACKETSIZE (512*1024)
