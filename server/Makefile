@@ -11,10 +11,10 @@ c2s.pb-c.c:
 	protoc-c --c_out=. c2s.proto
 
 %.o: %.c
-	$(CPP) $(CFLAGS) -c $< -o $@ $(INC)
+	$(CPP) -c $< -o $@ $(INC) $(CFLAGS)
 
 server: c2s.pb-c.c $(OTHINGS)
-	$(CPP) $(CFLAGS) $(OTHINGS) -o server
+	$(CPP) $(OTHINGS) -o server $(CFLAGS)
 
 clean:
 	rm -fr *.o server c2s.pb-c.h c2s.pb-c.c

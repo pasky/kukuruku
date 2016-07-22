@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
+#include <err.h>
 
 #include "client_parser.h"
 #include "xlate_worker.h"
@@ -312,7 +313,9 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
     }
 
     rec_stop = s->stopframe;
-    asprintf(&recpath, "rec-%li-%i", time(0), samplerate);
+    if(asprintf(&recpath, "rec-%li-%i", time(0), samplerate) == -1) {
+      err(1, "asprintf");
+    }
 
     pthread_mutex_unlock(&datamutex);
 

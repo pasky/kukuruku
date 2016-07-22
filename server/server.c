@@ -98,8 +98,12 @@ void * sdr_read_thr(void * a) {
       char * cfilepath;
       char * metapath;
 
-      asprintf(&cfilepath, "%s.cfile", recpath);
-      asprintf(&metapath, "%s.txt", recpath);
+      if(asprintf(&cfilepath, "%s.cfile", recpath) == -1) {
+        err(1, "asprintf");
+      }
+      if(asprintf(&metapath, "%s.txt", recpath) == -1) {
+        err(1, "asprintf");
+      }
 
       FILE * cfile = fopen(cfilepath, "ab");
       FILE * metafile = fopen(metapath, "ab");
@@ -112,10 +116,14 @@ void * sdr_read_thr(void * a) {
         fwrite(p->data, SDRPACKETSIZE*COMPLEX * sizeof(float), 1, cfile);
 
         char * metaline;
-        asprintf(&metaline, "block %zu time %i freq %" PRId64 "\n",
+        int ret = asprintf(&metaline, "block %zu time %i freq %" PRId64 "\n",
           SDRPACKETSIZE*COMPLEX * sizeof(float),
           p->timestamp,
           p->frequency);
+
+        if(ret == -1) {
+          err(1, "asprintf");
+        }
 
         fwrite(metaline, strlen(metaline), 1, metafile);
 
