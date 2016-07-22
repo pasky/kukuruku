@@ -22,7 +22,7 @@ def getfir(samplerate, filtertype, bw, transition, maxtaps):
   """
 
   coefs = None
-  if filtertype == "window":
+  if filtertype == "hamming":
     while True:
       coefs = firdes.low_pass(1, samplerate, bw, transition, firdes.WIN_HAMMING)
       if len(coefs) < maxtaps:

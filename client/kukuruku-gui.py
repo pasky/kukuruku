@@ -260,7 +260,7 @@ def xlater_cb():
     if row is None:
       lowpass = samplerate/xls[wid].decimation/2
       transition = 0.1*lowpass
-      filtertype = "window"
+      filtertype = "hamming"
       rid = xls[wid].rid
       if rid in XlaterHelpers:
         lowpass = XlaterHelpers[rid].lowpass
