@@ -48,7 +48,7 @@ int bind_me(char * port, const char * address, bool wildcard) {
   }
 
   if (s != 0) {
-    err(1, "getaddrinfo: %s\n", gai_strerror(s));
+    err(EXIT_FAILURE, "getaddrinfo: %s\n", gai_strerror(s));
   }
 
   /*  getaddrinfo() returns a list of address structures.
@@ -59,7 +59,7 @@ int bind_me(char * port, const char * address, bool wildcard) {
   for (rp = result; rp != NULL; rp = rp->ai_next) {
 
     if (rp->ai_family == AF_INET6) {
-      char * buf = malloc(INET6_ADDRSTRLEN);
+      char * buf = safe_malloc(INET6_ADDRSTRLEN);
       struct sockaddr_in * saddr = (struct sockaddr_in *)
           rp->ai_addr;
       if (inet_ntop(AF_INET6, &(saddr->sin_addr), buf,
@@ -70,7 +70,7 @@ int bind_me(char * port, const char * address, bool wildcard) {
       }
       free(buf);
     } else if (rp->ai_family == AF_INET) {
-      char * buf = malloc(INET_ADDRSTRLEN);
+      char * buf = safe_malloc(INET_ADDRSTRLEN);
       struct sockaddr_in * saddr = (struct sockaddr_in *)
           rp->ai_addr;
       if (inet_ntop(AF_INET, & (saddr->sin_addr), buf,
@@ -81,7 +81,7 @@ int bind_me(char * port, const char * address, bool wildcard) {
       }
       free(buf);
     } else if (rp->ai_family == AF_INET) {
-      char * buf = malloc(INET_ADDRSTRLEN);
+      char * buf = safe_malloc(INET_ADDRSTRLEN);
       struct sockaddr_in * saddr = (struct sockaddr_in *)
           rp->ai_addr;
       if (inet_ntop(AF_INET, & (saddr->sin_addr), buf,
@@ -122,7 +122,7 @@ int bind_me(char * port, const char * address, bool wildcard) {
   }
 
   if (rp == NULL) { /* No address succeeded */
-    err(1, "Could not bind\n");
+    err(EXIT_FAILURE, "Could not bind\n");
   }
 
   freeaddrinfo(result); /* No longer needed */
@@ -150,7 +150,7 @@ void * client_read_thr(void * param) {
       fprintf(stderr, "Read garbage size: %i\n", size);
       break;
     }
-    uint8_t * buf = (uint8_t*) malloc(size);
+    uint8_t * buf = (uint8_t*) safe_malloc(size);
     ret = readn(me->fd, buf, size);
     if(ret < size) {
       free(buf);
@@ -192,7 +192,7 @@ void network_listener(char * host, char * port) {
     }
 
     pthread_t thread_id;
-    tcp_cli_t * cli = malloc(sizeof(tcp_cli_t));
+    tcp_cli_t * cli = safe_malloc(sizeof(tcp_cli_t));
     cli->fd = newsockfd;
 
     pthread_mutex_lock(&llmutex);
@@ -202,7 +202,7 @@ void network_listener(char * host, char * port) {
 
     int ret = pthread_create(&thread_id, NULL, &client_read_thr, (void*)cli);
     if(ret < 0) {
-      err(1, "Cannot create client thread");
+      err(EXIT_FAILURE, "Cannot create client thread");
     }
     pthread_setname_np(thread_id, "client_read_t");
 

@@ -18,6 +18,7 @@
 #include "worker.h"
 #include "xlate_worker.h"
 #include "sdr_packet.h"
+#include "util.h"
 
 extern int32_t sdr_cptr;
 extern int32_t send_cptr;
@@ -43,7 +44,7 @@ float calc_max_amplitude(float * taps, int tapslen) {
 
 float * get_complex_taps(float * taps, int tapslen, float rotate) {
   size_t align = volk_get_alignment();
-  float * ctaps = volk_malloc(tapslen * COMPLEX * sizeof(float), align);
+  float * ctaps = volk_safe_malloc(tapslen * COMPLEX * sizeof(float), align);
 
   for(int i = 0; i<tapslen; i++) {
     ctaps[COMPLEX*i]     = taps[i] * cos(rotate*i);
@@ -80,14 +81,14 @@ worker * create_xlate_worker(float rotate, int decim, int history, float * taps,
   w->maxoutsize = COMPLEX * sizeof(float) * SDRPACKETSIZE/decim;
   size_t align = volk_get_alignment();
 
-  //workers[wid].outbuf = malloc(sizeof(char*) * BUFSIZE);
+  //workers[wid].outbuf = safe_malloc(sizeof(char*) * BUFSIZE);
   for(int i = 0; i<BUFSIZE; i++) {
-    w->outbuf[i].data = volk_malloc(w->maxoutsize, align);
+    w->outbuf[i].data = volk_safe_malloc(w->maxoutsize, align);
   }
 
   int ret = pthread_create(&w->thr, NULL, &xlate_worker_thr, (void*) w);
   if(ret < 0) {
-    err(1, "cannot create xlater worker thread");
+    err(EXIT_FAILURE, "cannot create xlater worker thread");
   }
   pthread_setname_np(w->thr, "worker");
 

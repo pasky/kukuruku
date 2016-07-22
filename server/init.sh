@@ -14,7 +14,7 @@ freq="$(( 100 * 1000 * 1000 ))"
 [ ! -p "$sdr" ] && mkfifo "$sdr"
 [ ! -p "$tune" ] && mkfifo "$tune"
 
-./server -s 2048000 -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -r "$2" -w 1024 &
+./server -s 2048000 -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -s "$2" -w 1024 &
 spid=$!
 
 echo "Server PID $spid, use 'gdb ./server $spid -ex c' to debug"

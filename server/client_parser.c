@@ -43,7 +43,7 @@ void msg_running_xlater(tcp_cli_t * me, worker * w) {
 
   // First send the new xlater info with provided ID to the originating client
   size_t len = c2s__srv__running__xlater__get_packed_size(&s);
-  void * buf = malloc(len);
+  void * buf = safe_malloc(len);
   c2s__srv__running__xlater__pack(&s, buf);
 
   uint32_t size = len + sizeof(int32_t); LE32(&size);
@@ -96,7 +96,7 @@ void msg_server_info(tcp_cli_t * me, bool toall) {
   s.maxtaps = MAXTAPS;
 
   size_t len = c2s__srv__info__get_packed_size(&s);
-  void * buf = malloc(len);
+  void * buf = safe_malloc(len);
   c2s__srv__info__pack(&s, buf);
 
   uint32_t size = len + sizeof(int32_t); LE32(&size);
@@ -128,7 +128,7 @@ void msg_destroyed_xlater(int32_t xid) {
   s.id = xid;
 
   size_t len = c2s__srv__destroyed__xlater__get_packed_size(&s);
-  void * buf = malloc(len);
+  void * buf = safe_malloc(len);
   c2s__srv__destroyed__xlater__pack(&s, buf);
 
   uint32_t size = len + sizeof(int32_t); LE32(&size);
@@ -157,7 +157,7 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
     s = c2s__cli__create__xlater__unpack(NULL, len, buf);
 
     size_t tapslen = s->n_taps;
-    float * taps = malloc(tapslen * sizeof(float));
+    float * taps = safe_malloc(tapslen * sizeof(float));
     memcpy(taps, s->taps, tapslen * sizeof(float));
 
     pthread_mutex_lock(&llmutex);
@@ -176,7 +176,7 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
 
     pthread_mutex_lock(&llmutex);
 
-    req_frames * r = malloc(sizeof(req_frames));
+    req_frames * r = safe_malloc(sizeof(req_frames));
     r->wid = s->id;
     r->sampletype = s->type;
     SLIST_INSERT_HEAD(&(me->req_frames_head), r, next);
@@ -224,7 +224,7 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
     SLIST_FOREACH(w, &worker_head, next) {
       if(w->wid == s->localid) {
         if(tapslen != 0) {
-          float * taps = malloc(tapslen * sizeof(float));
+          float * taps = safe_malloc(tapslen * sizeof(float));
           memcpy(taps, s->newtaps, tapslen * sizeof(float));
           w->newtaps = taps;
           w->newtapslen = tapslen;
@@ -314,7 +314,7 @@ int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
 
     rec_stop = s->stopframe;
     if(asprintf(&recpath, "rec-%li-%i", time(0), samplerate) == -1) {
-      err(1, "asprintf");
+      err(EXIT_FAILURE, "asprintf");
     }
 
     pthread_mutex_unlock(&datamutex);

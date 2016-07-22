@@ -10,6 +10,7 @@
 #include "metadata.h"
 #include "sdr_packet.h"
 #include "constants.h"
+#include "util.h"
 
 int fftsize;
 float* fftw_window;
@@ -36,8 +37,8 @@ void fftw_init(int N) {
     fftwf_free(fftw_out);
   }
 
-  fftw_in = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * N);
-  fftw_out = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * N);
+  fftw_in = (fftwf_complex*) fftwf_safe_malloc(sizeof(fftwf_complex) * N);
+  fftw_out = (fftwf_complex*) fftwf_safe_malloc(sizeof(fftwf_complex) * N);
   p = fftwf_plan_dft_1d(N, fftw_in, fftw_out, FFTW_FORWARD, FFTW_ESTIMATE);
 
   fftw_window = realloc(fftw_window, sizeof(float) * N);
@@ -52,7 +53,7 @@ void fftw_init(int N) {
 
 void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
   if(fftw_window == NULL) {
-    err(1, "Internal consistency, calling calc_spectrum before fftw_init");
+    err(EXIT_FAILURE, "Internal consistency, calling calc_spectrum before fftw_init");
   }
 
   size_t packet_len = spp * fftsize * sizeof(float);

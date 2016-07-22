@@ -68,10 +68,10 @@ SLIST_HEAD(worker_head_t, worker) worker_head = SLIST_HEAD_INITIALIZER(worker_he
 static void allocate_sdr_buf() {
   size_t align = volk_get_alignment();
   for(int i = 0; i<BUFSIZE; i++) {
-    sdr_inbuf[i].data = volk_malloc(COMPLEX * sizeof(float) * SDRPACKETSIZE, align);
-    sdr_inbuf[i].histo = malloc(sizeof(uint16_t) * HISTOGRAM_RES);
+    sdr_inbuf[i].data = volk_safe_malloc(COMPLEX * sizeof(float) * SDRPACKETSIZE, align);
+    sdr_inbuf[i].histo = safe_malloc(sizeof(uint16_t) * HISTOGRAM_RES);
     if(!sdr_inbuf[i].data) {
-      err(1, "Cannot allocate SDR input buffer");
+      err(EXIT_FAILURE, "Cannot allocate SDR input buffer");
     }
   }
 }
@@ -99,10 +99,10 @@ static void * sdr_read_thr(void * a) {
       char * metapath;
 
       if(asprintf(&cfilepath, "%s.cfile", recpath) == -1) {
-        err(1, "asprintf");
+        err(EXIT_FAILURE, "asprintf");
       }
       if(asprintf(&metapath, "%s.txt", recpath) == -1) {
-        err(1, "asprintf");
+        err(EXIT_FAILURE, "asprintf");
       }
 
       FILE * cfile = fopen(cfilepath, "ab");
@@ -122,7 +122,7 @@ static void * sdr_read_thr(void * a) {
           p->frequency);
 
         if(ret == -1) {
-          err(1, "asprintf");
+          err(EXIT_FAILURE, "asprintf");
         }
 
         fwrite(metaline, strlen(metaline), 1, metafile);
@@ -167,7 +167,7 @@ static void * sdr_read_thr(void * a) {
 
     size_t r = fread(sdr_inbuf[base].data, COMPLEX*sizeof(float), SDRPACKETSIZE, sdr_pipe);
     if(r != SDRPACKETSIZE) {
-      err(1, "short read from sdr at frame %i (%zu, %i)\n", sdr_cptr, r, SDRPACKETSIZE);
+      err(EXIT_FAILURE, "short read from sdr at frame %i (%zu, %i)\n", sdr_cptr, r, SDRPACKETSIZE);
     }
     sdr_inbuf[base].timestamp = time(0);
     sdr_inbuf[base].frameno = sdr_cptr;
@@ -360,13 +360,13 @@ static void create_read_write_threads() {
 
   int ret = pthread_create(&sdr_thread, NULL, &sdr_read_thr, NULL);
   if(ret != 0) {
-    err(1, "Cannot create SDR thread!\n");
+    err(EXIT_FAILURE, "Cannot create SDR thread!\n");
   }
   pthread_setname_np(sdr_thread, "sdr_read_thr");
 
   ret = pthread_create(&socket_thread, NULL, &socket_write_thr, NULL);
   if(ret != 0) {
-    err(1, "Cannot create socket thread!\n");
+    err(EXIT_FAILURE, "Cannot create socket thread!\n");
   }
   pthread_setname_np(socket_thread, "socket_write_t");
 
@@ -431,7 +431,7 @@ int main(int argc, char **argv) {
   sigaddset(&set, SIGPIPE);
   int s = pthread_sigmask(SIG_BLOCK, &set, NULL);
   if (s != 0)
-    err(1, "pthread_sigmask");
+    err(EXIT_FAILURE, "pthread_sigmask");
 
   fftw_init(fftw);
 
