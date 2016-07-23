@@ -372,7 +372,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>/dev/stdout</value>
+      <value>"/dev/stdout"</value>
     </param>
   </block>
   <block>
