@@ -1,32 +1,34 @@
 import configparser
 from ClientStructures import Mode
+from libutil import cfg_safe
 
 class ConfReader():
-  """ Read config from file in path """
+  """ Read Kukuruku gui config from file in path """
 
   def __init__(self, path):
     rc = configparser.ConfigParser()
     rc.read(path)
     section = "Main"
-    self.HOST = rc.get(section, 'host')
-    self.PORT = rc.getint(section, 'port')
-    self.mousechangedelay = rc.getint(section, 'mousechangedelay')
-    self.histooffs = rc.getint(section, 'histooffs')
-    self.histow = rc.getint(section, 'histow')
-    self.histobars = rc.getint(section, 'histobars')
-    self.drawingheight = rc.getint(section, 'drawingheight')
-    self.borderleft = rc.getint(section, 'borderleft')
-    self.areabottom = rc.getint(section, 'areabottom')
-    self.fontsize = rc.getint(section, 'fontsize')
-    self.antialias = rc.getboolean(section, 'antialias')
-    self.spectrumscale = rc.getint(section, 'spectrumscale')
-    self.spectrumoffset = rc.getint(section, 'spectrumoffset')
-    self.sqltrim = rc.getfloat(section, 'sqltrim')
-    self.sqldelta = rc.getfloat(section, 'sqldelta')
-    self.afcdecim = rc.getfloat(section, 'afcdecim')
-    self.afcmult = rc.getfloat(section, 'afcmult')
-    self.modepath = rc.get(section, 'modepath')
-    self.preferformat = rc.get(section, 'preferformat')
+    cfpath = path
+    self.HOST = cfg_safe(rc.get, section, 'host', "localhost", cfpath)
+    self.PORT = cfg_safe(rc.getint, section, 'port', 4444, cfpath)
+    self.mousechangedelay = cfg_safe(rc.getint, section, 'mousechangedelay', 1, cfpath)
+    self.histooffs = cfg_safe(rc.getint, section, 'histooffs', 1, cfpath)
+    self.histow = cfg_safe(rc.getint, section, 'histow', 50, cfpath)
+    self.histobars = cfg_safe(rc.getint, section, 'histobars', 256, cfpath)
+    self.drawingheight = cfg_safe(rc.getint, section, 'drawingheight', 540, cfpath)
+    self.borderleft = cfg_safe(rc.getint, section, 'borderleft', 80, cfpath)
+    self.areabottom = cfg_safe(rc.getint, section, 'areabottom', 120, cfpath)
+    self.fontsize = cfg_safe(rc.getint, section, 'fontsize', 12, cfpath)
+    self.antialias = cfg_safe(rc.getboolean, section, 'antialias', False, cfpath)
+    self.spectrumscale = cfg_safe(rc.getint, section, 'spectrumscale', 50, cfpath)
+    self.spectrumoffset = cfg_safe(rc.getint, section, 'spectrumoffset', 6, cfpath)
+    self.sqltrim = cfg_safe(rc.getfloat, section, 'sqltrim', 0.3, cfpath)
+    self.sqldelta = cfg_safe(rc.getfloat, section, 'sqldelta', 10, cfpath)
+    self.afcdecim = cfg_safe(rc.getfloat, section, 'afcdecim', 5, cfpath)
+    self.afcmult = cfg_safe(rc.getfloat, section, 'afcmult', 0.1, cfpath)
+    self.modepath = cfg_safe(rc.get, section, 'modepath', "./modes", cfpath)
+    self.preferformat = cfg_safe(rc.get, section, 'preferformat', "F32", cfpath)
     self.fftw = None
 
 def read_modes(path):
