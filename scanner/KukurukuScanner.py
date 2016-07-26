@@ -26,9 +26,9 @@ COMPLEX64 = 8
 
 class KukurukuScanner():
 
-  def __init__(self, l, confdir):
+  def __init__(self, l):
     self.l = l
-    self.conf = util.ConfReader(confdir)
+    self.conf = util.ConfReader()
 
   def croncmp(self, i, frag):
     if frag == "*":
@@ -86,9 +86,9 @@ class KukurukuScanner():
     self.sdrflush()
     peaks = []
     for channel in cronframe.channels:
-      peaks.append((channel.freq-cronframe.freq, channel.bw, channel))
+      peaks.append([channel.freq-cronframe.freq, channel.bw, channel])
 
-    self.do_record(peaks, cronframe.cronlen, 1, None, cronframe)
+    self.do_record(peaks, 1, None, cronframe)
 
   def scan(self, scanframe):
     ''' Find peaks in spectrum, record if specified in allow/blacklist '''
@@ -121,7 +121,25 @@ class KukurukuScanner():
     else:
       if self.conf.dumpspectrum == "on_signal":
         self.dump_spectrum(acc, self.getfn(scanframe.freq, None)+".spectrum.txt")
-      self.do_record(peaks, scanframe.stick, self.conf.filtermargin, sbuf, scanframe)
+
+      # determine whether we stumbled upon any specified channel which has PIPE set
+      peaks2 = []
+      for peak in peaks:
+        modified = False
+        for channel in scanframe.channels:
+          if channel.freq - scanframe.freq - channel.bw/2 < peak[0] and \
+             channel.freq - scanframe.freq + channel.bw/2 > peak[0]:
+
+            if channel.pipe:
+              peaks2.append([channel.freq - scanframe.freq, channel.bw, channel.pipe])
+            else:
+              peaks2.append([channel.freq - scanframe.freq, channel.bw])
+            modified = True
+
+        if not modified:
+          peaks2.append(peak)
+
+      self.do_record(peaks2, self.conf.filtermargin, sbuf, scanframe)
 
   def filter_blacklist(self, peaks, center):
     ret = []
@@ -158,11 +176,12 @@ class KukurukuScanner():
     frame.gain += diff
     frame.gain = np.clip(frame.gain, self.conf.mingain, self.conf.maxgain)
 
-  def do_record(self, peaks, stoptime, safetymargin, buf, frame):
+  def do_record(self, peaks, safetymargin, buf, frame):
 
     lastact = time.time()
     center = frame.freq
     floor = frame.floor
+    stoptime = time.time() + frame.stick
 
     helpers = []
     for peak in peaks:
@@ -183,9 +202,9 @@ class KukurukuScanner():
       ch.carry = '\0' * ch.cylen
 
       basename = self.getfn(f+center, ch.rate)
-      if len(peak) >= 3 and peak[2].pipe is not None:
+      if len(peak) >= 3 and peak[2] is not None:
         (ch.fd_r, ch.file) = os.pipe()
-        cmdline = peak[2].pipe.replace("_FILENAME_", basename)
+        cmdline = peak[2].replace("_FILENAME_", basename)
         subprocess.Popen([cmdline], shell=True, stdin=ch.fd_r, bufsize=-1)
         self.l.l("Recording \"%s\" (PIPE), firlen %i"%(cmdline, len(taps)), "INFO")
       else:
@@ -201,6 +220,7 @@ class KukurukuScanner():
       # read data from sdr if needed
       if buf is None:
         buf = self.pipefile.read(self.conf.bufsize * COMPLEX64)
+
         if frame.stickactivity:
           acc = self.compute_spectrum(buf)
           for peak in peaks:
@@ -215,7 +235,8 @@ class KukurukuScanner():
                      int(ch.decim), ch.rotator, ch.rotpos, ch.firpos, ch.file)
         ch.carry = buf[-ch.cylen:]
 
-      if time.time() > lastact + stoptime:
+      if ((not frame.stickactivity) and time.time() > stoptime) or \
+        (frame.stickactivity and time.time() > lastact + frame.silencegap):
         self.l.l("Record stop", "INFO")
         break
 
@@ -235,11 +256,14 @@ class KukurukuScanner():
 
     binhz = self.conf.rate/self.conf.fftw    
 
-    startbin = int(peak[0]/binhz - peak[1]/(2*binhz))
-    stopbin  = int(peak[0]/binhz + peak[1]/(2*binhz))
+    startbin = int(peak[0]/binhz - peak[1]/(2*binhz)) + self.conf.fftw/2
+    stopbin  = int(peak[0]/binhz + peak[1]/(2*binhz)) + self.conf.fftw/2
+
+    print(acc)
 
     for i in range(startbin, stopbin):
       if acc[i] > floor:
+        print("acc %i lvl %f floor %f"%(i,acc[i], floor))
         return True
 
     return False
@@ -263,13 +287,14 @@ class KukurukuScanner():
 
       buf = buf*self.window
 
-      fft = np.absolute(np.fft.fft(buf))
+      fft = np.fft.fft(buf)
+      fft = (np.real(fft) * np.real(fft) + np.imag(fft) * np.imag(fft))/self.conf.fftw
+      fft = np.log10(fft)*10
 
       acc += fft
       iters += 1
 
     acc = np.divide(acc, iters)
-    acc = np.log(acc)
 
     # FFT yields a list of positive frequencies and then negative frequencies.
     # We want it in the "natural" order.
@@ -302,7 +327,7 @@ class KukurukuScanner():
         if (i-first) >= minspan and (i-first) <= maxspan:
           f = binhz*(((i+first)/2)-self.conf.fftw/2)
           w = binhz*(i-first)
-          peaks.append((f, w))
+          peaks.append([f, w])
           self.l.l("signal at %f width %f"%(f, w), "INFO")
 
     return peaks

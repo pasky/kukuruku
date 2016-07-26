@@ -24,10 +24,13 @@ else:
   filenames = os.listdir(".")
 
 for filename in filenames:
-  if filename[-6:] != ".cfile":
+
+  fn = os.path.basename(filename)
+
+  if fn[-6:] != ".cfile":
     continue
 
-  p = filename.split("-")
+  p = fn.split("-")
   if len(p) != 8:
     continue
 

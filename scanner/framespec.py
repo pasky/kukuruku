@@ -1,14 +1,14 @@
 from libutil import Struct
 
 def scanframe():
-  ScanframeT = Struct("scanframe", "freq floor squelch channels gain stickactivity pipe")
-  return ScanframeT(None, None, None, [], 0, False, None)
+  ScanframeT = Struct("scanframe", "")
+  return ScanframeT()
 
 def cronframe():
-  CronframeT = Struct("cronframe", "freq floor squelch cronstr cronlen channels gain stickactivity pipe")
-  return CronframeT(None, None, None, "", 0, [], 0, False, None)
+  CronframeT = Struct("cronframe", "")
+  return CronframeT()
 
 def channel():
-  ChannelT = Struct("channel", "freq bw cont")
-  return ChannelT(None, None, 0)
+  ChannelT = Struct("channel", "")
+  return ChannelT()
 

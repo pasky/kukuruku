@@ -35,10 +35,6 @@ class top_block(gr.top_block):
 
     self.connect((self.osmosdr_source, 0), (self.blocks_file_descriptor_sink_0, 0))
 
-  # osmosdr.source.get_sample_rate() seems to be broken
-  def get_sample_rate(self):
-    return self.rate
-
   def tune(self, f):
     self.osmosdr_source.set_center_freq(int(f), 0)
 
@@ -58,15 +54,14 @@ from KukurukuScanner import KukurukuScanner
 import util
 
 def usage():
-  print("Usage: %s [-d device] [-p ppm] [-r rate] -c confdir"%sys.argv[0])
+  print("Usage: %s [-d device] [-p ppm]"%sys.argv[0])
   sys.exit(1)
 
 ppm = 0
 device = ""
-confdir = None
 
 try:
-  (opts, args) = getopt.getopt(sys.argv[1:], "d:c:p:")
+  (opts, args) = getopt.getopt(sys.argv[1:], "d:p:")
 except getopt.GetoptError as e:
   usage()
 
@@ -75,23 +70,18 @@ device = ""
 for opt, arg in opts:
   if opt == "-d":
     device = arg
-  elif opt == "-c":
-    confdir = arg
   elif opt == "-p":
     ppm = arg
   else:
     usage()
     assert False
 
-if not confdir:
-  usage()
-
 l = util.logger()
 l.setloglevel("DBG")
 
 (fd_r,fd_w) = os.pipe()
 
-scanner = KukurukuScanner(l, confdir)
+scanner = KukurukuScanner(l)
 
 sdr = top_block(device, scanner.conf.rate, ppm, fd_w)
 
