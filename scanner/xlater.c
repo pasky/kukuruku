@@ -10,6 +10,16 @@
 
 #define COMPLEX 2
 
+/* Translate, filter and decimate signal from _buf, write it to file descriptor fd.
+ *  _buf, buflen - input signal
+ *  _carry, carrylen - buffer for filter history
+ *  _taps, tapslen - filter coefficients
+ *  decim - decimation
+ *  rotator - vector denoting phase difference of successive samples
+ *  _rotpos, rotposlen - vector denoting current rotator phase
+ *  _firpos, firposlen - (integer), starting position in filter
+ *  fd - output descriptor
+ */
 int xdump(char * _buf, size_t buflen, char * _carry, size_t carrylen, char * _taps, size_t tapslen, int decim, float rotator, char * _rotpos, size_t rotposlen, char * _firpos, size_t firposlen, int fd) {
 
   assert(rotposlen == sizeof(lv_32fc_t));
