@@ -196,17 +196,18 @@ def fft_cb(d, frameno, timestamp):
     wfofs = (wfofs+1)%da_height
     d = d[conf.fftw:]
 
+    pygame.draw.line(screen, BLACK,
+      [0, wfofs],
+      [conf.borderleft + conf.fftw, wfofs])
+    pygame.draw.line(screen, WHITE,
+      [0, (wfofs+1)%da_height],
+      [conf.borderleft + conf.fftw, (wfofs+1)%da_height])
+
   if not lastfft:
     lastfft = data
     on_fftscale(None) # use the first measurement to at least coarsely adjust the color scheme
   lastfft = data
 
-  pygame.draw.line(screen, BLACK,
-    [0, wfofs],
-    [conf.borderleft + conf.fftw, wfofs])
-  pygame.draw.line(screen, WHITE,
-    [0, (wfofs+1)%da_height],
-    [conf.borderleft + conf.fftw, (wfofs+1)%da_height])
   pygame.display.update()
 
 def sql_cb(rotation, decimation):
