@@ -71,7 +71,7 @@ for opt, arg in opts:
   if opt == "-d":
     device = arg
   elif opt == "-p":
-    ppm = arg
+    ppm = int(arg)
   else:
     usage()
     assert False

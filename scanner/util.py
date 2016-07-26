@@ -150,31 +150,41 @@ class ConfReader():
 
         self.scanframes.append(frm)
 
-    # read blacklist
-    bl = []
+    # read blacklist and archivelist
     blpath = os.path.join(confdir, "blacklist.conf")
-    if os.path.isfile(blpath):
-      f = open(blpath)
+    self.blacklist = self.read_sorted_list("h", blpath)
+
+    self.archivelist = self.read_sorted_list("i", blpath)
+
+  def read_sorted_list(self, tag, filename):
+
+    # read blacklist
+    l = []
+    if os.path.isfile(filename):
+      f = open(filename)
       lines = f.readlines()
       for line in lines:
         pieces = line.strip().split(" ")
         if len(pieces) >= 3:
-          if pieces[0] == "h":
+          if pieces[0] == tag:
             freq = int(pieces[1])
             bw = int(pieces[2])/2
-            bl.append((freq-bw, freq+bw))
+            l.append((freq-bw, freq+bw))
 
-    self.blacklist = []
-    if len(bl) > 0:
-      # sort and union intervals
-      bl.sort(key=lambda x: x[0])
-      self.blacklist.append(bl[0])
-      for interval in bl[1:]:
-        if self.blacklist[-1][1] < interval[0]:
-          self.blacklist.append(interval)
-        elif self.blacklist[-1][1] == interval[0]:
-          self.blacklist[-1][1] = interval[1]
+    if not l:
+      return []
 
+    unioned = []
+    # sort and union intervals
+    l.sort(key=lambda x: x[0])
+    unioned.append(l[0])
+    for interval in l[1:]:
+      if unioned[-1][1] < interval[0]:
+        unioned.append(interval)
+      elif unioned[-1][1] == interval[0]:
+        unioned[-1][1] = interval[1]
+
+    return unioned
 
   def channel_list_from_config(self, rc):
     channels = []

@@ -19,8 +19,12 @@ from libutil import Struct, safe_cast
 from gnuradio.filter import firdes
 
 def channelhelper():
-  ChannelHelperT = Struct("channelhelper", "rotator decim rate file taps carry rotpos firpos cylen fd_r")
+  ChannelHelperT = Struct("channelhelper", "")
   return ChannelHelperT()
+
+def peak(freq, bw, pipe, archive):
+  PeakT = Struct("peak", "freq bw pipe archive")
+  return PeakT(freq, bw, pipe, archive)
 
 COMPLEX64 = 8
 
@@ -86,9 +90,9 @@ class KukurukuScanner():
     self.sdrflush()
     peaks = []
     for channel in cronframe.channels:
-      peaks.append([channel.freq-cronframe.freq, channel.bw, channel])
+      peaks.append(peak(channel.freq-cronframe.freq, channel.bw, channel.pipe, True))
 
-    self.do_record(peaks, 1, None, cronframe)
+    self.do_record(peaks, None, cronframe)
 
   def scan(self, scanframe):
     ''' Find peaks in spectrum, record if specified in allow/blacklist '''
@@ -123,44 +127,48 @@ class KukurukuScanner():
         self.dump_spectrum(acc, self.getfn(scanframe.freq, None)+".spectrum.txt")
 
       # determine whether we stumbled upon any specified channel which has PIPE set
-      peaks2 = []
       for peak in peaks:
-        modified = False
         for channel in scanframe.channels:
-          if channel.freq - scanframe.freq - channel.bw/2 < peak[0] and \
-             channel.freq - scanframe.freq + channel.bw/2 > peak[0]:
+          if channel.freq - scanframe.freq - channel.bw/2 < peak.freq and \
+             channel.freq - scanframe.freq + channel.bw/2 > peak.freq:
 
-            if channel.pipe:
-              peaks2.append([channel.freq - scanframe.freq, channel.bw, channel.pipe])
-            else:
-              peaks2.append([channel.freq - scanframe.freq, channel.bw])
-            modified = True
+            peak.freq = channel.freq - scanframe.freq
+            peak.bw = channel.bw
+            peak.pipe = channel.pipe
+            peak.archive = True
 
-        if not modified:
-          peaks2.append(peak)
+      self.do_record(peaks, sbuf, scanframe)
 
-      self.do_record(peaks2, self.conf.filtermargin, sbuf, scanframe)
+  def find_in_interval_list(self, l, key):
+
+    if not l:
+      return False
+
+    pos = bisect.bisect(l, (key, None))
+
+    if pos >= len(l):
+      pos -= 1
+
+    entry = l[pos]
+
+    if key > entry[0] and key < entry[1]: # found
+      return True
+
+    return False
 
   def filter_blacklist(self, peaks, center):
     ret = []
-    if not self.conf.blacklist:
-      return peaks
 
     for peak in peaks:
-      f = peak[0]+center
+      f = peak.freq+center
 
-      pos = bisect.bisect(self.conf.blacklist, (f, None))
-
-      if pos >= len(self.conf.blacklist):
-        pos -= 1
-
-      entry = self.conf.blacklist[pos]
-
-      if f < entry[0] or f > entry[1]:
+      if not self.find_in_interval_list(self.conf.blacklist, f):
+        if self.find_in_interval_list(self.conf.archivelist, f):
+          peak.archive = True
         ret.append(peak)
         continue
 
-      self.l.l("Removing blacklisted signal %i"%(peak[0]+center), "INFO")
+      self.l.l("Removing blacklisted signal %i"%(peak.freq+center), "INFO")
 
     return ret
 
@@ -176,7 +184,7 @@ class KukurukuScanner():
     frame.gain += diff
     frame.gain = np.clip(frame.gain, self.conf.mingain, self.conf.maxgain)
 
-  def do_record(self, peaks, safetymargin, buf, frame):
+  def do_record(self, peaks, buf, frame):
 
     lastact = time.time()
     center = frame.freq
@@ -187,27 +195,30 @@ class KukurukuScanner():
     for peak in peaks:
       ch = channelhelper()
 
-      f = peak[0]
-      w = peak[1]*safetymargin
+      f = peak.freq
+      w = peak.bw
 
       ch.decim = math.ceil(self.conf.rate/w)
       ch.rate = self.conf.rate/ch.decim
       ch.rotator = -float(f)/self.conf.rate * 2*math.pi
       ch.rotpos = np.zeros(2, dtype=np.float32)
       ch.rotpos[0] = 1 # start with unit vector
-      taps = firdes.low_pass(1, self.conf.rate, w/2, w*self.conf.transition, firdes.WIN_HAMMING)
+      transition_band = w*self.conf.transition
+      taps = firdes.low_pass(1, self.conf.rate, w/2-transition_band, transition_band, firdes.WIN_HAMMING)
       ch.taps = struct.pack("=%if"%len(taps), *taps)
       ch.firpos = np.zeros(1, dtype=np.int32)
       ch.cylen = len(ch.taps)
       ch.carry = '\0' * ch.cylen
 
       basename = self.getfn(f+center, ch.rate)
-      if len(peak) >= 3 and peak[2] is not None:
+      if peak.pipe is not None:
         (ch.fd_r, ch.file) = os.pipe()
-        cmdline = peak[2].replace("_FILENAME_", basename)
+        cmdline = peak.pipe.replace("_FILENAME_", basename)
         subprocess.Popen([cmdline], shell=True, stdin=ch.fd_r, bufsize=-1)
         self.l.l("Recording \"%s\" (PIPE), firlen %i"%(cmdline, len(taps)), "INFO")
       else:
+        if peak.archive:
+          basename = "archive/"+basename
         fullfile = basename + ".cfile"
         ch.file = os.open(fullfile, os.O_WRONLY|os.O_CREAT)
         ch.fd_r = None
@@ -226,7 +237,7 @@ class KukurukuScanner():
           for peak in peaks:
             if self.check_activity(acc, peak, floor):
               lastact = time.time()
-              self.l.l("%f has activity, continuing"%peak[0], "INFO")
+              self.l.l("%f has activity, continuing"%peak.freq, "INFO")
 
       # xlate each channel
       for ch in helpers:
@@ -256,8 +267,8 @@ class KukurukuScanner():
 
     binhz = self.conf.rate/self.conf.fftw    
 
-    startbin = int(peak[0]/binhz - peak[1]/(2*binhz)) + self.conf.fftw/2
-    stopbin  = int(peak[0]/binhz + peak[1]/(2*binhz)) + self.conf.fftw/2
+    startbin = int(peak.freq/binhz - peak.bw/(2*binhz)) + self.conf.fftw/2
+    stopbin  = int(peak.freq/binhz + peak.bw/(2*binhz)) + self.conf.fftw/2
 
     print(acc)
 
@@ -326,8 +337,8 @@ class KukurukuScanner():
       if acc[i] < floor and acc[i-1] > floor:
         if (i-first) >= minspan and (i-first) <= maxspan:
           f = binhz*(((i+first)/2)-self.conf.fftw/2)
-          w = binhz*(i-first)
-          peaks.append([f, w])
+          w = binhz*(i-first)*self.conf.filtermargin
+          peaks.append(peak(f, w, None, False))
           self.l.l("signal at %f width %f"%(f, w), "INFO")
 
     return peaks

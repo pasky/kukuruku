@@ -13,6 +13,9 @@ from ConfReader import ConfReader, read_modes
 conf = ConfReader(os.getenv('HOME') + '/.kukuruku/gui')
 modes = read_modes(os.getenv('HOME') + '/.kukuruku/modes')
 
+blacklistfile = os.path.join(os.path.expanduser('~'), ".kukuruku/scanner/")
+blacklistfile = os.path.join(blacklistfile, "blacklist.conf")
+
 archdir = "archive"
 
 if not os.path.isdir(archdir):
@@ -46,7 +49,7 @@ for filename in filenames:
     print("d_) delete")
     print("a_) archive")
     print("_n) ignore once")
-    print("_s) ignore by sorter")
+    print("_s) ignore by sorter (directly archive)")
     print("_h) ignore by scanner")
     print("q) just quit")
     c = raw_input('Choice: __ [optional comment] ')
@@ -76,11 +79,11 @@ for filename in filenames:
         os.rename(filename, archdir + "/" + filename)
 
       if c[1] == "s":
-        bl = open("blacklist.txt", "a")
+        bl = open(blacklistfile, "a")
         bl.write("s %i %i %s\n"%(freq, rate, c[3:]))
         bl.close()
       elif c[1] == "h":
-        bl = open("blacklist.txt", "a")
+        bl = open(blacklistfile, "a")
         bl.write("h %i %i %s\n"%(freq, rate, c[3:]))
         bl.close()
 
