@@ -58,7 +58,7 @@ rate=32000
 bw=15000
 transition=2000
 filtertype=hamming
-program=_MODEPATH_/raw.sh 32
+program=_MODEPATH_/raw.py -s 32000
 resample=yes
 
 [RAW128]
@@ -67,5 +67,5 @@ rate=128000
 bw=60000
 transition=8000
 filtertype=hamming
-program=_MODEPATH_/raw.sh 128
+program=_MODEPATH_/raw.py -s 128000
 resample=yes

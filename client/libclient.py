@@ -137,8 +137,8 @@ class client():
   def set_afc_params(self, decim, mult):
     """ Set parameters of automatic frequency correction
      decim -- trigger AFC every N frames
-     mult -- mulriply the obtained power difference with this value and add it to the rotator
-       expected are very small numbers between 0.1 and 10 μ.
+     mult -- multiply the obtained power difference with this value and add it to the rotator
+       expected are small numbers, about 0.01 - 0.2
     """
     self.afcdecim = decim
     self.afcmult = mult
@@ -357,7 +357,8 @@ class client():
 
     if msg.id in self.xlaters.keys():
       # push None to the feeder thread, it will gracefully exit
-      self.xlaters[msg.id].data.put(None)
+      if self.xlaters[msg.id].data:
+        self.xlaters[msg.id].data.put(None)
       del(self.xlaters[msg.id])
 
     if self.xlater_callback:
@@ -568,6 +569,7 @@ class client():
     self.q_msg(hdr + msg.SerializeToString())
 
   def set_ppm(self, ppm):
+    """ Set radio PPM """
     hdr = struct.pack(proto.ENDIAN+"i", proto.SET_PPM)
 
     msg = c2s.CLI_SET_PPM()

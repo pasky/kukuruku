@@ -4,7 +4,6 @@
 from __future__ import print_function
 
 import gtk
-import configparser
 import os
 import sys
 import struct
@@ -79,7 +78,7 @@ def float2color(f):
   Get color index from power readings
   """
   idx = conf.spectrumscale*(f + conf.spectrumoffset)
-  return max(0, min(libutil.safe_cast(idx, int, 0), 1023))
+  return max(0, min(libutil.safe_cast(idx, int, 0), len(colormap)-1))
 
 def pixel2freq(pixpos):
   """
@@ -147,6 +146,8 @@ lastfft = None
 fftframes = {}
 # dictionary y position -> timestamp
 ffttimes = {}
+# dictionary y position -> list of power data [dB]
+fftpowers = {}
 # timestamp of last message in the left border
 fft_lastshowntime = 0
 
@@ -174,6 +175,7 @@ def fft_cb(d, frameno, timestamp):
 
     fftframes[wfofs] = frameno
     ffttimes[wfofs] = timestamp
+    fftpowers[wfofs] = data
 
     if fft_lastshowntime + 4.5 < timestamp and wfofs > conf.fontsize and timestamp % 5 == 0:
       wow = datetime.fromtimestamp(timestamp).strftime("%H:%M:%S %y%m%d")
@@ -210,9 +212,16 @@ def sql_cb(rotation, decimation):
   ave = 0.0
   items = 0.0
   for i in range(centerbin-rangebins, centerbin+rangebins):
+    if i < 0 or i > conf.fftw-1:
+      continue
     ave += lastfft[i]
     items += 1
   ave /= items
+
+  relevant = lastfft[centerbin-rangebins:centerbin+rangebins]
+  if not relevant:
+    print("squelch: extracted empty measurement")
+    return True
 
   ave = max(lastfft[centerbin-rangebins:centerbin+rangebins])
 
@@ -379,9 +388,15 @@ def da_press(widget, event):
   """ Handle button press on display area """
   global wf_click_x,wf_click_y
 
+  # ignore presses outside drawing area
+  if event.get_coords()[0] < conf.borderleft or event.get_coords()[0] > conf.borderleft+conf.fftw:
+    return
+
+  # right click
   if event.type == gtk.gdk.BUTTON_RELEASE and event.button == 3:
     menu.popup(None, None, None, event.button, event.time)
 
+  # release on move
   if event.type == gtk.gdk.BUTTON_RELEASE and event.button == 1:
     cl.acquire_xlaters()
     wid = pixel2xlater(wf_click_x)
@@ -420,11 +435,15 @@ def da_motion(widget, event):
 
   y = event.get_coords()[1]
   timestamp = 0
+  dbstr = "?"
   if y in ffttimes.keys():
     timestamp = ffttimes[y]
+  if y in fftpowers.keys():
+    pwr = fftpowers[y][min(conf.fftw-1, max(0, int(event.get_coords()[0]-conf.borderleft)))]
+    dbstr = "%.1f"%pwr
 
   datestr = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-  tb_cursor_label.set_text("%i kHz, %s"%(freq, datestr))
+  tb_cursor_label.set_text("%i kHz, %s, %s dB"%(freq, datestr, dbstr))
 
 def on_freq_change(widget, event):
   """ Handle edit in the Frequency textbox """
