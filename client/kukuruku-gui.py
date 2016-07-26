@@ -118,22 +118,31 @@ def pixel2xlater(pixpos):
   return None
 
 
-def info_cb(_samplerate, _frequency, _ppm, _gain, _packetlen, _fftw, _bufsize, _maxtaps):
+def info_cb(msg):
   """ Extract information from INFO message """
-  global samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps
+  global samplerate, frequency, ppm, gain, packetlen, bufsize, maxtaps
 
-  (samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps) = (_samplerate, _frequency, _ppm, _gain, _packetlen, _fftw, _bufsize, _maxtaps)
+  samplerate = msg.samplerate
+  frequency = msg.frequency
+  ppm = msg.ppm
+  _fftw = msg.fftw
+  gain = []
+  gain.append(msg.autogain)
+  gain.append(msg.global_gain)
+  gain.append(msg.if_gain)
+  gain.append(msg.bb_gain)
+  packetlen = msg.packetlen
+  bufsize = msg.bufsize
+  maxtaps = msg.maxtaps
+
   tb_freq.set_text(str(frequency))
   tb_ppm.set_text(str(ppm))
 
-  # autogain does not work as expected on all three radios I have available (rtl-sdr, airspy, bladerf).
-  # so instead of putting "A" here, we will give the full configuration to the user...
-  #if gain[0] != 0:
-  #  tb_gain.set_text("A")
-  #else:
   tb_gain.set_text("%i,%i,%i,%i"%(gain[0], gain[1], gain[2], gain[3]))
 
   conf.fftw = _fftw
+
+  # signal that we have received server info and the GUI can now run
   wait_for_info.acquire()
   wait_for_info.notify()
   wait_for_info.release()

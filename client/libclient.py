@@ -501,7 +501,7 @@ class client():
     print("Remote says: samplerate %i, center frequency: %ik, ppm: %i, gain: %s, fft size: %i"%(samplerate, frequency/1000, ppm, gain, fftw))
     print("             samples per frame: %i, buffer length: %i frames, max FIR len: %i"%(packetlen, bufsize, maxtaps))
     if self.info_callback:
-      self.info_callback(samplerate, frequency, ppm, gain, packetlen, fftw, bufsize, maxtaps) #FIXME
+      self.info_callback(msg)
 
     if self.xlater_callback:
       self.xlaters_lock.acquire()
