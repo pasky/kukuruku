@@ -195,8 +195,6 @@ class ConfReader():
       ch = channel()
       ch.freq = engnum(rc.get(ssect, "freq"))
       ch.bw = engnum(rc.get(ssect, "bw"))
-      taps = firdes.low_pass(1, self.rate, ch.bw, ch.bw*self.transition, firdes.WIN_HAMMING)
-      ch.taps = struct.pack("=%if"%len(taps), *taps)
 
       ch.pipe = cfg_safe(rc.get, ssect, 'pipe', None)
 

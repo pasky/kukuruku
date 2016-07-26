@@ -19,13 +19,27 @@ from libutil import Struct, safe_cast
 from gnuradio.filter import firdes
 
 def channelhelper():
-  ChannelHelperT = Struct("channelhelper", "")
+  """ channelhelper is created when we are recording a channel.
+      np.complex64 ch.rotpos - vector denoting current rotator phase
+      np.int32 ch.firpos - we start the filter evaluation at this sample
+       (needed when frame length is not divisible by decimation)
+      carry, cylen - buffer where part of the signal is stored and carried to the
+       next iteration (we need it because the FIR filter needs to read samples from the history)
+  """
+
+  ChannelHelperT = Struct("channelhelper", "decim rate rotator rotpos firpos cylen carry")
   return ChannelHelperT()
 
 def peak(freq, bw, pipe, archive):
+  """ One peak that is to be recorded
+      freq - frequency relative to the center frequency
+      pipe - command to be executed (instead of saving samples to file, they are piped to a process)
+      archive - whether to save to an archive/ directory or to a current directory
+  """
   PeakT = Struct("peak", "freq bw pipe archive")
   return PeakT(freq, bw, pipe, archive)
 
+# length in bytes
 COMPLEX64 = 8
 
 class KukurukuScanner():
@@ -35,6 +49,10 @@ class KukurukuScanner():
     self.conf = util.ConfReader()
 
   def croncmp(self, i, frag):
+    """ Compare cron field (e.g. "*", "15" or "*/5"), return True on positive match.
+    i - number to compare with
+    frag - the cron field
+    """
     if frag == "*":
       return True
     if frag[:2] == "*/":
@@ -51,6 +69,7 @@ class KukurukuScanner():
     return False
 
   def crontest(self, s):
+    """ Test a cron string 's' (e.g. "*/5 * * * 1") against current time, return True on positive match. """
     pieces = s.split(" ")
     if len(pieces) != 5:
       self.l.l("malformed cron string %s"%s, "CRIT")
@@ -65,11 +84,13 @@ class KukurukuScanner():
     return ret
 
   def find_cronjob(self, cronframes):
+    """ Check cron string of all frames, return the first frame that matches or None """
     for frame in cronframes:
       if self.crontest(frame.cron):
         return frame
 
   def getfn(self, f, rate):
+    """ Build filename from frequency, current date and channel rate """
     ds = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S')
     if rate is not None:
       return "%i-%s-%i"%(f, ds, rate)
@@ -77,6 +98,7 @@ class KukurukuScanner():
       return "%i-%s"%(f, ds)
 
   def dump_spectrum(self, acc, filename):
+    """ Write acc, which is an array of floats, to a file """
     f = open(filename, "wb")
     for flt in acc:
       f.write("%f\n"%flt)
@@ -140,6 +162,7 @@ class KukurukuScanner():
       self.do_record(peaks, sbuf, scanframe)
 
   def find_in_interval_list(self, l, key):
+    """ Bisect list "l" of intervals sorted by start points, return True if key is in some interval """
 
     if not l:
       return False
@@ -157,6 +180,13 @@ class KukurukuScanner():
     return False
 
   def filter_blacklist(self, peaks, center):
+    """ Transform peaks list:
+     - remove peaks that have center frequency with "h" flag in blacklist
+     - set archive = True to peaks that have "i" flag in blacklist
+
+     parameters: peaks - peak list
+     center - center frequency (because the peak has only relative frequency in it)
+    """
     ret = []
 
     for peak in peaks:
@@ -173,6 +203,7 @@ class KukurukuScanner():
     return ret
 
   def update_and_set_gain(self, frame, histo):
+    """ evaluate computed histogram and increase/decrease gain of frame accordingly """
     diff = 0
     # if there is some signal in the highest 10 bins, decrease gain
     if sum(histo[-10:]) > 0:
@@ -185,6 +216,7 @@ class KukurukuScanner():
     frame.gain = np.clip(frame.gain, self.conf.mingain, self.conf.maxgain)
 
   def do_record(self, peaks, buf, frame):
+    """ Recort "peaks" to respective files or pipes. """
 
     lastact = time.time()
     center = frame.freq
@@ -211,12 +243,15 @@ class KukurukuScanner():
       ch.carry = '\0' * ch.cylen
 
       basename = self.getfn(f+center, ch.rate)
+
       if peak.pipe is not None:
+        # spawn process, pipe to stdin
         (ch.fd_r, ch.file) = os.pipe()
         cmdline = peak.pipe.replace("_FILENAME_", basename)
         subprocess.Popen([cmdline], shell=True, stdin=ch.fd_r, bufsize=-1)
         self.l.l("Recording \"%s\" (PIPE), firlen %i"%(cmdline, len(taps)), "INFO")
       else:
+        # write to file
         if peak.archive:
           basename = "archive/"+basename
         fullfile = basename + ".cfile"
@@ -246,6 +281,8 @@ class KukurukuScanner():
                      int(ch.decim), ch.rotator, ch.rotpos, ch.firpos, ch.file)
         ch.carry = buf[-ch.cylen:]
 
+      # check if we have either reached end specified by "stick" or
+      #  there is no activity for at least "silencegap" seconds
       if ((not frame.stickactivity) and time.time() > stoptime) or \
         (frame.stickactivity and time.time() > lastact + frame.silencegap):
         self.l.l("Record stop", "INFO")
@@ -263,6 +300,10 @@ class KukurukuScanner():
         os.close(ch.fd_r)
 
   def check_activity(self, acc, peak, q):
+    """ Check if a given peak is active
+    acc - computed spectrum
+    q - relevant percentile
+    """
     floor = sorted(acc)[int(q * self.conf.fftw)]
 
     binhz = self.conf.rate/self.conf.fftw    
@@ -280,7 +321,7 @@ class KukurukuScanner():
     return False
 
   def compute_histogram(self, sbuf):
-    """ Compute histogram with 100 bins """
+    """ Compute histogram with 100 bins (hardcoded for now) """
     acc = np.zeros(100)
     dt = np.dtype("=f4")
     buf = np.frombuffer(sbuf, dtype=dt)
@@ -289,6 +330,7 @@ class KukurukuScanner():
     return acc
 
   def compute_spectrum(self, sbuf):
+    """ Compute power spectrum (10log_10((Re^2+Im^2)/N) of signal in buf. """
 
     acc = np.zeros(self.conf.fftw)
     iters = 0
@@ -322,6 +364,8 @@ class KukurukuScanner():
     return acc2
 
   def find_peaks(self, acc, floor):
+    """ Find peaks in spectrum -- chunks that have power above floor """
+
     first = -1
 
     binhz = self.conf.rate/self.conf.fftw
@@ -344,9 +388,14 @@ class KukurukuScanner():
     return peaks
 
   def sdrflush(self):
+    """ Read self.conf.bufsize samples to flush buffers in osmosdr """
     self.pipefile.read(self.conf.bufsize * COMPLEX64)
 
   def work(self, sdr, file_r):
+    """ General work.
+    sdr - gnuradio.gr.top_block object
+    file_r - file object (opened pipe) to read samples from
+    """
     self.sdr = sdr
     self.pipefile = file_r
 

@@ -39,7 +39,7 @@ antialias=no
 spectrumscale=50
 spectrumoffset=6
 
-; The squelch works by taking this quantile of power measurement and regard it as a noise floor.
+; The squelch works by taking this percentile of power measurement and regard it as a noise floor.
 sqltrim=0.2
 ; Then, everything that is more than sqldelta above noise floor is considered a signal.
 sqldelta=10
