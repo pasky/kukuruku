@@ -10,5 +10,5 @@ c2s_pb2.py:
 
 clean:
 	$(MAKE) -C modes clean
-	rm c2s_pb2.py c2s_pb2.pyc
+	rm -f c2s_pb2.py c2s_pb2.pyc
 

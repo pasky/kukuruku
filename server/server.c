@@ -34,23 +34,37 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+// The last frame ID that was read from SDR
 int32_t sdr_cptr = -1;
+// The last frame ID that was sent to all clients
 int32_t send_cptr = -1;
+
+// The last frame ID that has been recorded to disk (when we are recording the entire baseband)
 int32_t rec_cptr = INT32_MIN;
+// The frame ID where recording should stop
 int32_t rec_stop = 0;
+// path to file we are recording to (without ".cfile" and ".txt")
 char * recpath;
 
+// the input SDR buffer
 sdr_packet sdr_inbuf[BUFSIZE];
 
+// sdr_read_thr
 pthread_t sdr_thread;
+// socket_write_thr
 pthread_t socket_thread;
 
+// mutex guarding all linked lists
 pthread_mutex_t llmutex = PTHREAD_MUTEX_INITIALIZER;
+// mutex guarding manipulation with all buffers
 pthread_mutex_t datamutex = PTHREAD_MUTEX_INITIALIZER;
+// condition on which workers wait when there is no work to be done
 pthread_cond_t datacond = PTHREAD_COND_INITIALIZER;
 
+// list of all TCP clients
 extern SLIST_HEAD(tcp_cli_head_t, tcp_cli_t) tcp_cli_head;
 
+// osmosdr-input.py control and data interface
 char * sdr_cmd_file;
 FILE * sdr_cmd;
 char * sdr_pipe_file;
@@ -62,6 +76,7 @@ int32_t ppm = INT32_MIN;
 int32_t fftw = FFTSIZE;
 struct current_gain_t gain;
 
+// list of all workers
 SLIST_HEAD(worker_head_t, worker) worker_head = SLIST_HEAD_INITIALIZER(worker_head);
 
 // Allocate SDR input buffer
@@ -76,6 +91,7 @@ static void allocate_sdr_buf() {
   }
 }
 
+// This thread reads data from SDR, puts them to sdr_inbuf and also records them to file when enabled.
 static void * sdr_read_thr(void * a) {
   // open the pipe we are reading from
   sdr_pipe = fopen(sdr_pipe_file, "r");
@@ -98,9 +114,11 @@ static void * sdr_read_thr(void * a) {
       char * cfilepath;
       char * metapath;
 
+      // data file (cfile)
       if(asprintf(&cfilepath, "%s.cfile", recpath) == -1) {
         err(EXIT_FAILURE, "asprintf");
       }
+      // metadata file (txt)
       if(asprintf(&metapath, "%s.txt", recpath) == -1) {
         err(EXIT_FAILURE, "asprintf");
       }
@@ -140,7 +158,7 @@ static void * sdr_read_thr(void * a) {
       free(metapath);
     }
 
-    // We wish to write packet sdr_cptr+1.
+    // We wish to put packet sdr_cptr+1 to buffer.
 
     if(!locked) {
       pthread_mutex_lock(&datamutex);
@@ -172,7 +190,7 @@ static void * sdr_read_thr(void * a) {
     sdr_inbuf[base].timestamp = time(0);
     sdr_inbuf[base].frameno = sdr_cptr;
     sdr_inbuf[base].frequency = frequency;
-    calc_spectrum(&(sdr_inbuf[base]), 1, 10240);
+    calc_spectrum(&(sdr_inbuf[base]), 1, SDRPACKETSIZE/64);
     calc_histogram(&(sdr_inbuf[base]), 65535);
 
     // signal that new data are available
@@ -183,16 +201,19 @@ static void * sdr_read_thr(void * a) {
   }
 }
 
+// This thread reads filtered channels from workers and writes them to TCP clients.
 static void * socket_write_thr(void * a) {
   while(1) {
-    // We wish to read packet send_cptr+1
+    // We wish to read packet send_cptr+1 from buffer and write it to sockets
 
     pthread_mutex_lock(&llmutex);
 
     tcp_cli_t * client;
     bool willwait = true;
 
-    // projdu všechny workery, zapisuju dokud jejich last_written > send_cptr, send_cptr++
+    // We go through all workers and until last_written > send_cptr (see explanation in
+    //  worker.h), we take the data and send them to clients; send_cptr++
+    // All this seems a bit tricky with minimal locking and synchronous I/O...
     worker * w;
     worker * finished = NULL;
     SLIST_FOREACH(w, &worker_head, next) {
@@ -269,7 +290,9 @@ static void * socket_write_thr(void * a) {
 
       } else { // not enabled, awaiting destruction ... check for thread still alive
         int ret = pthread_kill(w->thr, 0);
-        if(ret == ESRCH) { // free
+        if(ret == ESRCH) { // free and join it
+          //printf("joining\n");
+          pthread_join(w->thr, NULL);
           finished = w;
           SLIST_REMOVE(&worker_head, w, worker, next);
           break;
@@ -277,6 +300,7 @@ static void * socket_write_thr(void * a) {
       }
     }
 
+    // this is because we can't continue processing the linked list if we free one of its item
     if(finished != NULL) {
       free(finished);
       willwait = false;
@@ -284,7 +308,10 @@ static void * socket_write_thr(void * a) {
       continue;
     }
 
-    // podívám se na globální send_cptr, zapisuju metadata dokud sdr_cptr > send_cptr, send_cptr++
+
+    // Now take care about metadada (spectrum, histogram).
+
+    // We check the global send_cptr, and then write metadata until sdr_cptr > send_cptr.
     pthread_mutex_lock(&datamutex);
     int _sdr_cptr = sdr_cptr;
     int _send_cptr = send_cptr;
@@ -346,7 +373,7 @@ static void * socket_write_thr(void * a) {
 
     pthread_mutex_unlock(&llmutex);
 
-    // pokud jsem nic nezapsal, čekám na cond
+    // If we have written nothing, wait.
     if(willwait) {
       poll(NULL, 0, 10);
     }

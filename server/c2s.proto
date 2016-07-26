@@ -1,76 +1,64 @@
+/* This files specifies all Kukuruku protocol messages except the raw
+ *  payload message, which is specified in client_parser.h. */
+
 package c2s;
 
-enum special_payload_type {
-  SPECTRUM = 1;
-  HISTO = 2;
-}
-
+// Format of samples we want to receive
 enum sample_type {
-  F32 = 1;
-  I16 = 2;
-  I8 = 3;
+  F32 = 1; // float32
+  I16 = 2; // int16_t
+  I8 = 3;  // int8_t
 }
 
-enum command_type {
-  DUMPBUFFER = 1;
-  RECORD_START = 2;
-  RECORD_STOP = 19;
-  CREATE_XLATER = 3;
-  LIST_XLATERS = 4;
-  DESTROY_XLATER = 5;
-  ENABLE_XLATER = 6;
-  DISABLE_XLATER = 7;
-  SET_GAIN = 8;
-  RETUNE = 9;
-  SET_PPM = 10;
-  SET_HISTO_FFT = 11;
-  SET_RATE = 12;
-  ENABLE_SPECTRUM = 13;
-  DISABLE_SPECTRUM = 14;
-  ENABLE_HISTO = 15;
-  DISABLE_HISTO = 16;
-  GET_INFO = 17;
-  MODIFY_XLATER = 18;
+/* Messages in the directions client -> server are prefixed CLI_
+ * Messages from the server to the client are prefixed SRV_
+ */
 
-  PAYLOAD = 256;
-  DUMPED = 257;
-  RUNNING_XLATER = 258;
-  INFO = 259;
-  DESTROYED_XLATER = 260;
-}
-
+// Create xlater on the server
 message CLI_CREATE_XLATER {
-  required int32 remoteid = 1;
-  required float rotate = 2;
+  required int32 remoteid = 1;   // client reference ID
+  required float rotate = 2;     // rotator (the signal is multiplied by e^(rotator*sample))
   required int32 decimation = 3;
-  required int32 startframe = 4;
-  repeated float taps = 5;
+  required int32 startframe = 4; // set to ID of frame or -1 if you don't want history
+  repeated float taps = 5;       // filter coefficients
 }
 
+// Subscribe xlater
 message CLI_ENABLE_XLATER {
   required int32 id = 1;
   required sample_type type = 2;
 }
 
+// Unsubscribe
 message CLI_DISABLE_XLATER {
   required int32 id = 1;
 }
 
+// Modify xlater
 message CLI_MODIFY_XLATER {
   required int32 localid = 1;
-  required float rotate = 2;
-  repeated float newtaps = 3;
+  required float rotate = 2;  // mandatory
+  repeated float newtaps = 3; // optional -- if not set, taps are not changed
 }
 
+// Completely delete an xlater on server
 message CLI_DESTROY_XLATER {
   required int32 id = 1;
 }
 
+/* Record SDR baseband to cfile (server-side) in the current working directory.
+ * Additionally, a .txt file is created containing metadata.
+ * The .txt file contains lines of the following format:
+ * block <size in bytes> time <unix timestamp> freq <frequency>
+ */
 message CLI_RECORD_START {
-  required int32 startframe = 1;
-  required int32 stopframe = 2;
+  required int32 startframe = 1; // first frame ID of the recording, -1 for current
+  required int32 stopframe = 2;  // last frame ID if the recording
+  // if you want to record indefinitely, set stopframe to INT_MAX
+  // and to stop recording just set both to negative values
 }
 
+// Set SDR gain, these four fields correspond to the osmosdr ones and are mostly hardware-dependent.
 message CLI_SET_GAIN {
   required int32 autogain = 1;
   required int32 global_gain = 2;
@@ -78,48 +66,42 @@ message CLI_SET_GAIN {
   required int32 bb_gain = 4;
 }
 
+// Set SDR frequency
 message CLI_RETUNE {
   required int64 freq = 1;
 }
 
+// Set SDR clock correction
 message CLI_SET_PPM {
   required int32 ppm = 1;
 }
 
-message CLI_SET_FFT {
-  required int32 fftsize = 1;
-  required int32 decim = 2;
-}
 
+// Server announces that an xlater has been created
 message SRV_RUNNING_XLATER {
-  required int32 remoteid = 1;
-  required int32 id = 2;
+  required int32 remoteid = 1; // client-submitted ID, or -1 for clients that did not create the xlater
+  required int32 id = 2; // server-assigned ID, use this for any further references to the xlater
   required float rotate = 3;
   required int32 decimation = 4;
 }
 
-message SRV_PAYLOAD {
-  required int32 id = 1;
-  required int32 time = 2;
-  required int32 frameno = 3;
-  required sample_type type = 4;
-  repeated float samples = 5 [packed=true];
-}
 
+// Server info, generated on every change
 message SRV_INFO {
-  required int32 samplerate = 1;
-  required int64 frequency = 2;
+  required int32 samplerate = 1; // SDR sample rate
+  required int64 frequency = 2;  // frequency the SDR is tuned to
   required int32 ppm = 3;
-  required int32 fftw = 4;
+  required int32 fftw = 4;       // size of spectrum
   required int32 autogain = 5;
   required int32 global_gain = 6;
   required int32 if_gain = 7;
   required int32 bb_gain = 8;
-  required int32 packetlen = 9;
-  required int32 bufsize = 10;
-  required int32 maxtaps = 11;
+  required int32 packetlen = 9;  // SDRPACKETSIZE (see constants.h)
+  required int32 bufsize = 10;   // BUFSIZE (see constants.h)
+  required int32 maxtaps = 11;   // MAXTAPS (see constants.h)
 }
 
+// Server announces an xlater has been deleted
 message SRV_DESTROYED_XLATER {
   required int32 id = 1;
 }

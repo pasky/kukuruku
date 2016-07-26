@@ -55,6 +55,7 @@ float * get_complex_taps(float * taps, int tapslen, float rotate) {
   return ctaps;
 }
 
+/* history .. the frame it should start with (or -1 for current frame) */
 worker * create_xlate_worker(float rotate, int decim, int history, float * taps, int tapslen) {
 
   worker * w = calloc(1, sizeof(worker));
@@ -110,6 +111,14 @@ void * xlate_worker_thr(void *ptr) {
   int32_t mypos = ctx->last_written + 1;
 
   int fir_offset = 0;
+
+  /* To avoid hassle with complicated FIR evaluation, we allocate *alldata bigger
+   *  and copy the end of previous frame to the beginning of it, so we can compute
+   *  the filter simply as sum(x_{n-j}*h_{j}) and don't care about overflows.
+   * 
+   * The interesting fact is that if SDRPACKETSIZE is not divisible by decimation,
+   *  the filtered frames will have different lengths.
+   */
   float * alldata = calloc(sizeof(float), (SDRPACKETSIZE + MAXTAPS) * COMPLEX);
   float * firout = calloc(1, ctx->maxoutsize);
   lv_32fc_t phase_inc, phase;
@@ -133,6 +142,7 @@ void * xlate_worker_thr(void *ptr) {
     int outsample = 0;
     int i;
 
+    // evaluate the filter
     for(i = fir_offset; i<SDRPACKETSIZE; i+=ctx->decim) {
       lv_32fc_t* dst = (lv_32fc_t*) (firout + outsample*COMPLEX);
       volk_32fc_x2_dot_prod_32fc(dst,
@@ -140,10 +150,14 @@ void * xlate_worker_thr(void *ptr) {
           (lv_32fc_t*)(ctx->taps), ctx->tapslen); // filter
       outsample++;
     }
+
+    // rotator
     volk_32fc_s32fc_x2_rotator_32fc( (lv_32fc_t*) ctx->outbuf[mypos % BUFSIZE].data, // dst
         (lv_32fc_t*) firout, phase_inc, &phase, outsample);
 
+    // save position so we know where to start evaluation the next frame
     fir_offset = i - SDRPACKETSIZE;
+
     ctx->outbuf[mypos % BUFSIZE].len = outsample * COMPLEX * sizeof(float);
 
     pthread_mutex_lock(&datamutex);
@@ -167,6 +181,7 @@ void * xlate_worker_thr(void *ptr) {
 
   }
 
+  // gracefully exit -- free and unlock everything...
   for(int i = 0; i<BUFSIZE; i++) {
     volk_free(ctx->outbuf[i].data);
   }

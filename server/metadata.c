@@ -57,6 +57,8 @@ void fftw_init(int N) {
  * spp - how many waterfall lines to compute
  * fftskip - distance between beginning of transforms (we don't usually compute
  *  side-by-side or even overlapping FFT, but rather sample the signal once a while)
+ * 
+ * What is exacly calculated? 10log10((Re^2 + Im^2)/N) for the unnormalized FFT with Hamming window.
  */
 void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
   if(fftw_window == NULL) {
@@ -88,27 +90,25 @@ void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
       /* Transform */
       fftwf_execute(p);
 
-      /* FFTW computes DFT without scaling by 1/sqrt(N) */
-      float dftscale = 1/sqrtf(fftsize);
-
       /* Read output */
       float * fout = (float *) fftw_out;
       for(int k = 0; k<fftsize; k++) {
         float v1 = fout[COMPLEX*k];
         float v2 = fout[COMPLEX*k+1];
 
-        /* We are computing sum(log(hypot(i,q))).
-         * We can compute log(prod(hypot(i,q))) and save computationally intesive logarithms */
-        /* gah, numerically unstable! probably can be implemented by splitting the float with
+        /* We are computing sum(log(something))).
+         * We can compute log(prod(something)) and save computationally intesive logarithms.
+         * However, this seems to be numerically unstable (you multiply small numbers until
+         *  you end up with 0).  Probably can be implemented by splitting the float with
          * frexp(3) and computing exponent separately...
 
         if(j == 0) {
-          fftw_avg[k] = hypotf(v1, v2);
+          fftw_avg[k] = (v1*v1 + v2*v2);
         } else {
-          fftw_avg[k] *= hypotf(v1, v2);
+          fftw_avg[k] *= (v1*v1 + v2*v2);
         }*/
+
         fftw_avg[k] += log10f((v1*v1 + v2*v2)/fftsize);
-        //fftw_avg[k] += logf(hypotf(v1, v2) * dftscale);
 
       }
 
