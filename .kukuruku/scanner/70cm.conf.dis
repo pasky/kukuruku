@@ -1,0 +1,5 @@
+[General]
+freqstart=445M
+freqstop=449M
+stickactivity=True
+silencegap=5
