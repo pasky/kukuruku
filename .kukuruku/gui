@@ -1,19 +1,58 @@
 [Main]
+; Edit this so it points to the modes/ directory with a full path
+modepath=./modes
+
+; address and port of the server (can be changed on command line -- ./kukuruku-gui.py server:port)
+host=localhost
 port=4444
+
+; how long to wait until we commit changes created by scrolling on the channel
+;  (we don't want to commit them one-by-one because of overhead)
 mousechangedelay=1
+
+; the always white line between waterfall and histogram
 histooffs=1
+
+; width of the histogram
 histow=150
+
+; height of the histogram
 histobars=256
+
+; height of waterfall
 drawingheight=540
+
+; left border with timestamps
 borderleft=80
+
+; height of bottom toolbar where xlaters are listed
 areabottom=120
+
 fontsize=12
+
+; antialiasing in PyGame seems to reduce readability
+; OTOH with antialiasing off, it is very ugly
 antialias=no
+
+; default values for colors of the waterfall, we don't really use them as we adjust it
+;  immediately with the first measurement
 spectrumscale=50
 spectrumoffset=6
+
+; The squelch works by taking this quantile of power measurement and regard it as a noise floor.
 sqltrim=0.2
+; Then, everything that is more than sqldelta above noise floor is considered a signal.
 sqldelta=10
+
+; Compute AFC every afcdecim-th frame
 afcdecim=5
+; and then scale the power difference by this factor and add it to the frequency
+;  (this has no clear interpretation, it is just a number that we somehow get)
+;  higher afcmult means faster, more aggressive and unstable AFC
 afcmult=0.1
+
+; use this format to transfer samples
+; F32 is floating-point and has the highest dynamic range
+; I16 and I8 are 16- and 8-bit fixed point
 preferformat=F32
-modepath=/home/jenda/tmp/kukuruku/client/modes
+
