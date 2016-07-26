@@ -32,6 +32,9 @@ extern char* recpath;
 
 extern FILE * sdr_cmd;
 
+/* Send RUNNING_XLATER to the originating client (respecting remoteID) and then
+ *  to all other clients (with ID -1)
+ */
 void msg_running_xlater(tcp_cli_t * me, worker * w) {
 
   C2s__SRVRUNNINGXLATER s = C2S__SRV__RUNNING__XLATER__INIT;
@@ -76,6 +79,7 @@ void msg_running_xlater(tcp_cli_t * me, worker * w) {
   free(buf);
 }
 
+/* Send SRV_INFO to client *me */
 void msg_server_info(tcp_cli_t * me, bool toall) {
   C2s__SRVINFO s = C2S__SRV__INFO__INIT;
 
@@ -120,6 +124,7 @@ void msg_server_info(tcp_cli_t * me, bool toall) {
   free(buf);
 }
 
+/* Send DESTROYED_XLATER to all clients */
 void msg_destroyed_xlater(int32_t xid) {
   C2s__SRVDESTROYEDXLATER s = C2S__SRV__DESTROYED__XLATER__INIT;
 
@@ -146,9 +151,15 @@ void msg_destroyed_xlater(int32_t xid) {
   free(buf);
 }
 
+/* Main loop parsing messages from clients
+ * *me - originating client
+ * *buf2 - the message (incl. type header, but excl. length)
+ * len - length of the message
+ */
 int parse_client_req(tcp_cli_t * me, const uint8_t * buf2, int32_t len) {
   int type = ((int*)buf2)[0]; LE32(&type);
 
+  // make protobufs happy with unsigned
   const uint8_t * buf = buf2 + sizeof(int32_t);
   len -= sizeof(int32_t); // strip message type
 

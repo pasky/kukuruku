@@ -19,6 +19,7 @@ float* fftw_avg;
 fftwf_complex *fftw_in, *fftw_out;
 fftwf_plan p;
 
+/* Return i-th coefficient of Hamming window of a given length */
 float hamming(int i, int length) {
   double a, b, w, N1;
   a = 25.0/46.0;
@@ -28,6 +29,7 @@ float hamming(int i, int length) {
   return w;
 }
 
+/* allocate FFTW buffers and window and init plan */
 void fftw_init(int N) {
 
   if(fftw_in != NULL) {
@@ -51,6 +53,11 @@ void fftw_init(int N) {
   fftsize = N;
 }
 
+/* Calculate spectrum of packet *pkt and write it to pkt->spectrum
+ * spp - how many waterfall lines to compute
+ * fftskip - distance between beginning of transforms (we don't usually compute
+ *  side-by-side or even overlapping FFT, but rather sample the signal once a while)
+ */
 void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
   if(fftw_window == NULL) {
     err(EXIT_FAILURE, "Internal consistency, calling calc_spectrum before fftw_init");
@@ -100,7 +107,8 @@ void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
         } else {
           fftw_avg[k] *= hypotf(v1, v2);
         }*/
-        fftw_avg[k] += logf(hypotf(v1, v2) * dftscale);
+        fftw_avg[k] += log10f((v1*v1 + v2*v2)/fftsize);
+        //fftw_avg[k] += logf(hypotf(v1, v2) * dftscale);
 
       }
 
@@ -109,7 +117,7 @@ void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
     }
 
     for(int k = 0; k<fftsize; k++) {
-      fftw_avg[k] = fftw_avg[k] / iters;
+      fftw_avg[k] = fftw_avg[k] / (iters/10);
     }
 
     /* Per FFTW documentation:
@@ -123,6 +131,10 @@ void calc_spectrum(sdr_packet * pkt, int spp, int fftskip) {
 
 }
 
+/* Calculate histogram of first npoints samples
+ * write it to pkt->histo
+ * npoints <= UINT16_MAX as histo is currently array of 16-bits
+ */
 void calc_histogram(sdr_packet * pkt, int npoints) {
   memset(pkt->histo, 0, HISTOGRAM_RES * sizeof(uint16_t));
   for(int i = 0; i<npoints; i++) {

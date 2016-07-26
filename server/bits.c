@@ -8,17 +8,20 @@
 
 #if OUR_ENDIAN != TARGET_ENDIAN
 
+// Convert 4 bytes to target endian
 void LE32(void *x) {
   uint32_t i;
   memcpy(&i, x, sizeof(i));
-  i = htobe32(i);
+  i = htole32(i);
   memcpy(x, &i, sizeof(i));
 }
 
+// Convert 2 bytes to target endian
+// ofc a more efficient implementation can be imagined
 void LE16(void *x) {
   uint16_t i;
   memcpy(&i, x, sizeof(i));
-  i = htobe16(i);
+  i = htole16(i);
   memcpy(x, &i, sizeof(i));
 }
 

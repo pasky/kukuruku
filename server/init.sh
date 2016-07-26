@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 
 if [ $# -ne 3 ]; then
   echo "Usage: $0 device rate ppm"
@@ -22,5 +22,4 @@ echo "Server PID $spid, use 'gdb ./server $spid -ex c' to debug"
 trap "kill $spid" SIGINT SIGTERM
 
 ./osmosdr-input.py -d "$1" -r "$2" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -p "$ppm"
-
 kill $spid

@@ -31,6 +31,7 @@ extern SLIST_HEAD(worker_head_t, worker) worker_head;
 
 int widx;
 
+/* Calculate the maximum amplitude a filter can produce. */
 float calc_max_amplitude(float * taps, int tapslen) {
 
   float acc = 0;
@@ -42,6 +43,7 @@ float calc_max_amplitude(float * taps, int tapslen) {
 
 }
 
+/* Rotate the low-pass filter, so it becomes band-pass. */
 float * get_complex_taps(float * taps, int tapslen, float rotate) {
   size_t align = volk_get_alignment();
   float * ctaps = volk_safe_malloc(tapslen * COMPLEX * sizeof(float), align);
