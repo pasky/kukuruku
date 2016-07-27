@@ -80,7 +80,7 @@ for filename in filenames:
 
       if c[1] == "s":
         bl = open(blacklistfile, "a")
-        bl.write("s %i %i %s\n"%(freq, rate, c[3:]))
+        bl.write("i %i %i %s\n"%(freq, rate, c[3:]))
         bl.close()
       elif c[1] == "h":
         bl = open(blacklistfile, "a")
