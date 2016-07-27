@@ -97,7 +97,6 @@ def pixel2frame(pixpos):
   Y position in waterfall to corresponding frame number
   """
   if not pixpos in fftframes:
-    print("not in")
     return min(fftframes.values())
   return fftframes[pixpos]
 

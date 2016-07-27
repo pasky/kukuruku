@@ -270,7 +270,7 @@ class KukurukuScanner():
         if frame.stickactivity:
           acc = self.compute_spectrum(buf)
           for peak in peaks:
-            if self.check_activity(acc, peak, floor):
+            if self.check_activity(acc, peak, floor, frame.sql):
               lastact = time.time()
               self.l.l("%f has activity, continuing"%peak.freq, "INFO")
 
@@ -299,23 +299,20 @@ class KukurukuScanner():
       if ch.fd_r:
         os.close(ch.fd_r)
 
-  def check_activity(self, acc, peak, q):
+  def check_activity(self, acc, peak, q, sql):
     """ Check if a given peak is active
     acc - computed spectrum
     q - relevant percentile
     """
-    floor = sorted(acc)[int(q * self.conf.fftw)]
+    floor = sorted(acc)[int(q * self.conf.fftw)] + sql
 
     binhz = self.conf.rate/self.conf.fftw    
 
     startbin = int(peak.freq/binhz - peak.bw/(2*binhz)) + self.conf.fftw/2
     stopbin  = int(peak.freq/binhz + peak.bw/(2*binhz)) + self.conf.fftw/2
 
-    print(acc)
-
     for i in range(startbin, stopbin):
       if acc[i] > floor:
-        print("acc %i lvl %f floor %f"%(i,acc[i], floor))
         return True
 
     return False

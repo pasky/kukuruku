@@ -14,16 +14,16 @@ from libutil import Struct
 """
 
 def scanframe():
-  ScanframeT = Struct("scanframe", "freq, floor, stickactivity, stick, silencegap, sql, gain, channels")
-  return ScanframeT()
+  ScanframeT = Struct("scanframe", "freq floor stickactivity stick silencegap sql gain channels")
+  return ScanframeT(0, 0, False, 0, 0, 0, 0, [])
 
 def cronframe():
-  CronframeT = Struct("cronframe", "freq, floor, stickactivity, stick, silencegap, sql, gain, channels cron")
-  return CronframeT()
+  CronframeT = Struct("cronframe", "freq floor stickactivity stick silencegap sql gain channels cron")
+  return CronframeT(0, 0, False, 0, 0, 0, 0, [], "")
 
 def channel():
   """ Definition of one channel generated from the [ChannelName] section in .conf file """
 
   ChannelT = Struct("channel", "freq bw taps pipe")
-  return ChannelT()
+  return ChannelT(0, 0, [], None)
 
