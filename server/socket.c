@@ -176,7 +176,7 @@ void network_listener(char * host, char * port) {
 
   sdr_cmd = fopen(sdr_cmd_file, "w");
 
-  int sockfd = bind_me(port, host, true);
+  int sockfd = bind_me(port, host, false);
   listen(sockfd, 4);
   int newsockfd;
 

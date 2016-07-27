@@ -14,7 +14,8 @@ freq="$(( 100 * 1000 * 1000 ))"
 [ ! -p "$sdr" ] && mkfifo "$sdr"
 [ ! -p "$tune" ] && mkfifo "$tune"
 
-./server -s 2048000 -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -s "$2" -w 1024 &
+# set -b :: for ipv4 and ipv6 all interfaces
+./server -s 2048000 -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -a -s "$2" -b 127.0.0.1 -t 4444 -w 1024 &
 spid=$!
 
 echo "Server PID $spid, use 'gdb ./server $spid -ex c' to debug"

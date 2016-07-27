@@ -72,7 +72,7 @@ FILE * sdr_pipe;
 
 int32_t samplerate = -1;
 int64_t frequency = 100e6;
-int32_t ppm = INT32_MIN;
+int32_t ppm = 0;
 int32_t fftw = FFTSIZE;
 struct current_gain_t gain;
 
@@ -400,7 +400,10 @@ static void create_read_write_threads() {
 }
 
 static void usage(char * me) {
-  printf("usage: %s -s samplerate -p ppm -f frequency -i cmdpipe -o sdrpipe\n", me);
+  printf(
+    "usage: %s [parameters]\n"
+    "  mandatory: -s samplerate -f frequency -i cmdpipe -o sdrpipe\n"
+    "  optional: -p ppm -a (autogain) -g gain -b host -t port -w fft_width\n", me);
   exit(1);
 }
 
@@ -411,7 +414,7 @@ int main(int argc, char **argv) {
 
   /* Command line opts */
   int opt;
-  while ((opt = getopt(argc, argv, "s:f:p:g:i:o:h:t:w:")) != -1) {
+  while ((opt = getopt(argc, argv, "s:f:p:ag:i:o:b:t:w:")) != -1) {
     switch (opt) {
       case 's':
         samplerate = atoi(optarg);
@@ -422,8 +425,10 @@ int main(int argc, char **argv) {
       case 'p':
         ppm = atoi(optarg);
         break;
-      case 'g':
+      case 'a':
         gain.autogain = 1;
+        break;
+      case 'g':
         gain.global_gain = atoi(optarg);
         gain.if_gain = atoi(optarg);
         gain.bb_gain = atoi(optarg);
@@ -440,7 +445,7 @@ int main(int argc, char **argv) {
       case 'w':
         fftw = atoi(optarg);
         break;
-      case 'h':
+      case 'b':
         host = optarg;
         break;
       default:
@@ -448,8 +453,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if(frequency < 0 || samplerate <= 0 || ppm == INT32_MIN ||
-   sdr_pipe_file == NULL || sdr_cmd_file == NULL) {
+  if(frequency < 0 || samplerate <= 0 || sdr_pipe_file == NULL || sdr_cmd_file == NULL) {
     usage(argv[0]);
   }
 
