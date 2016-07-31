@@ -81,7 +81,8 @@ worker * create_xlate_worker(float rotate, int decim, int history, float * taps,
   }
   w->send_cptr = w->last_written;
 
-  w->maxoutsize = COMPLEX * sizeof(float) * SDRPACKETSIZE/decim;
+  // allocate space for one more sample, because there might be a fir offset that will make us produce more tham SDRPACKETSIZE/decim
+  w->maxoutsize = COMPLEX * sizeof(float) * (SDRPACKETSIZE/decim+1);
   size_t align = volk_get_alignment();
 
   //workers[wid].outbuf = safe_malloc(sizeof(char*) * BUFSIZE);
