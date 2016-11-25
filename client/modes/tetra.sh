@@ -18,6 +18,8 @@ function ex() {
 
 trap ex SIGINT SIGTERM
 
-xterm -e "tetra-rx $pipe"
+mkdir -p /tmp/tetra-dumpdir
+
+xterm -e "tetra-rx -d /tmp/tetra-dumpdir $pipe"
 
 ex
