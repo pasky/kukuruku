@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ $# -ne 4 ]; then
-  echo "Usage: $0 device rate ppm listen-address"
+if [ $# -lt 3 ]; then
+  echo "Usage: $0 device rate ppm <listen-address, default ::1>"
   exit 2
 fi
 
@@ -11,6 +11,11 @@ gain="30"
 ppm="$3"
 sample_rate="$2"
 listen_address="$4"
+
+if [ -z listen_address ]; then
+  listen_address="::1"
+fi
+
 freq="$(( 100 * 1000 * 1000 ))"
 
 [ ! -p "$sdr" ] && mkfifo "$sdr"
