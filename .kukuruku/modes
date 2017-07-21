@@ -69,3 +69,13 @@ transition=8000
 filtertype=hamming
 program=_MODEPATH_/raw.py -s 128000
 resample=yes
+
+[SGP]
+name=RS92-SGPL Weather sonde
+rate=16000
+bw=5000
+transition=1000
+filtertype=hamming
+program=_MODEPATH_/sonde_sgp.sh
+resample=yes
+
