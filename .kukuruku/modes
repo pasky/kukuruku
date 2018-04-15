@@ -79,3 +79,11 @@ filtertype=hamming
 program=_MODEPATH_/sonde_sgp.sh
 resample=yes
 
+[RS41]
+name=RS41 Weather sonde
+rate=16000
+bw=5000
+transition=1000
+filtertype=hamming
+program=_MODEPATH_/sonde_rs41.sh
+resample=yes
