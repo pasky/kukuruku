@@ -1,9 +1,10 @@
 CC = grcc
-CFLAGS = -d .
+CFLAGS = -o .
 
 all: modes
 
-MODES = tetrapol.py tetra.py nfm.py mfm.py wfm.py raw.py sonde_sgp.py
+MODES = mfm.py tetrapol.py tetra.py nfm.py mfm.py wfm.py raw.py sonde_sgp.py
+
 
 %.py: %.grc
 	$(CC) $(CFLAGS) $<

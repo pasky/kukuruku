@@ -20,4 +20,4 @@ trap ex SIGINT SIGTERM
 
 ./rs41ecc -vv $pipe 2>&1 | tee -a /tmp/rs41.log
 
-ex
+exit

@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import os
 import struct
-import Queue
+import queue
 import socket
 import threading
 import time
@@ -72,7 +72,7 @@ class client():
     # TCP threads for reading and writing the socket + queue for asynchronous message sending
     self.tcp_r_t = None
     self.tcp_s_t = None
-    self.msgq = Queue.Queue()
+    self.msgq = queue.Queue()
 
     self.sock = None
 
@@ -217,7 +217,7 @@ class client():
     pending_xlater = self.Xlater()
 
     (pending_xlater.data, pending_xlater.thread) = self.spawn_mode(program)
-    pending_xlater.decimation = decimation
+    pending_xlater.decimation = int(decimation)
     pending_xlater.rotate = rotate
     pending_xlater.rid = self.xln
 
@@ -301,7 +301,7 @@ class client():
   def spawn_mode(self, cmd):
     """ Spawn a process cmd, spawn feeder_thr for it, return reference to queue and thread. """
     process = subprocess.Popen([cmd], stdin=subprocess.PIPE, shell=True, bufsize=-1)
-    que = Queue.Queue()
+    que = queue.Queue()
     t = threading.Thread(target=self.feeder_thr, args=(que, process), name="feeder_thr for %s"%cmd)
     t.daemon = True
     t.start()
@@ -392,7 +392,7 @@ class client():
         self.xlaters_lock.release()
         return
 
-      if not self.xlaters[wid].thread.isAlive():
+      if not self.xlaters[wid].thread.is_alive():
         self.disable_xlater(wid)
         if self.xlater_callback:
           self.xlater_callback()
@@ -585,7 +585,7 @@ class client():
       bool afc -- apply afc to this channel
       int rid -- local reference ID
       threading.Thread thread -- feeder thread
-      Queue.Queue data -- queue of channel data that are written to program stdin
+      queue.Queue data -- queue of channel data that are written to program stdin
       string sqlsave -- last frame in case of closed squelch, we use this to replay on frame on opening squelch
     """
     XlaterT = libutil.Struct("xlater", "rotate decimation sql afc rid thread data sqlsave")
