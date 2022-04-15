@@ -38,7 +38,7 @@
     </param>
     <param>
       <key>generate_options</key>
-      <value>wx_gui</value>
+      <value>qt_gui</value>
     </param>
     <param>
       <key>hier_block_src_path</key>
@@ -419,7 +419,7 @@
     </param>
   </block>
   <block>
-    <key>wxgui_waterfallsink2</key>
+    <key>qtgui_waterfall_sink</key>
     <param>
       <key>avg_alpha</key>
       <value>0</value>
@@ -478,7 +478,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>wxgui_waterfallsink2_0</value>
+      <value>qtgui_waterfall_sink_0</value>
     </param>
     <param>
       <key>notebook</key>
@@ -533,7 +533,7 @@
   </connection>
   <connection>
     <source_block_id>fractional_resampler_xx_0</source_block_id>
-    <sink_block_id>wxgui_waterfallsink2_0</sink_block_id>
+    <sink_block_id>qtgui_waterfall_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

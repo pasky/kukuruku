@@ -1,10 +1,11 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import libclient
 import time
 import math
 from gnuradio.filter import firdes
+from gnuradio import fft
 
 # Create client object
 cl = libclient.client()
@@ -25,7 +26,7 @@ def xlater_cb():
 
 cl.set_xlater_callback(xlater_cb)
 
-cl.connect("localhost", 4444)
+cl.connect("127.0.0.1", 4444)
 
 cl.set_auto_enable_xlater(True)
 
@@ -36,8 +37,8 @@ rotate = 300000.0/2048000 * 2*math.pi
 decim = 2048000/48000
 
 # create the xlater, the temporary remote ID gets stored in rid
-rid = cl.create_xlater(rotate, decim, firdes.low_pass(1, 2048000, 20000, 10000, firdes.WIN_HAMMING), "./modes/mfm.py", -1)
-print "Created xlater, reference %i"%rid
+rid = cl.create_xlater(rotate, decim, firdes.low_pass(1, 2048000, 20000, 10000, fft.window.WIN_HAMMING), "./modes/mfm.py", -1)
+print("Created xlater, reference %i"%rid)
 
 # wait for 10 s and if we have the server-assigned ID, retune to some other frequency
 time.sleep(10)

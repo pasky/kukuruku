@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
@@ -47,7 +47,13 @@ tb = None
 def set_param_thr(pipe, sdr):
   f = open(pipe, "rb")
   while True:
-    ptype = struct.unpack("=B", f.read(1))[0]
+    ptype_b = f.read(1)
+    if len(ptype_b) == 0:
+        print("Waiting for pipe open...")
+        time.sleep(1)
+        continue
+
+    ptype = struct.unpack("=B", ptype_b)[0]
 
     if ptype == sdr_iface.TUNE:
       data = f.read(8)
@@ -119,7 +125,7 @@ t.start()
 
 tb.start()
 try:
-    raw_input('Press Enter to quit: ')
+    input('Press Enter to quit: ')
 except EOFError:
     pass
 tb.stop()

@@ -58,7 +58,7 @@ def cfg_safe(func, section, key, default, f = None):
   except:
     x = default
     if f is not None:
-      print "Can't get configuration key %s from section %s in %s. Using default %s."%(key, section, f, default)
+      print("Can't get configuration key %s from section %s in %s. Using default %s."%(key, section, f, default))
   return x
 
 

@@ -1,17 +1,15 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
 
-import gtk
 import os
 import sys
 import struct
-import Queue
+import queue
 import time
 from datetime import datetime
 import pygame
-import gobject
 import math
 import subprocess
 
@@ -27,37 +25,44 @@ from ClientStructures import XlaterHelper, Mode
 from ConfReader import ConfReader, read_modes
 from getfir import getfir
 
-gtk.gdk.threads_init()
+import gi
+gi.require_version('Gtk', '3.0')
+gi.require_version('Gdk', '3.0')
+from gi.repository import Gtk
+from gi.repository import Gdk
+
+
+Gdk.threads_init()
 
 # get configuration
 conf = ConfReader(os.getenv('HOME') + '/.kukuruku/gui')
 
 # initialize the graphic stuff
-vbox = gtk.VBox(False, 0)
+vbox = Gtk.VBox(False, 0)
 screen = None
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
 wait_for_info = Condition()
 
-window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-toolbar = gtk.Toolbar()
-toolbar.set_style(gtk.TOOLBAR_ICONS)
-tb_record = gtk.ToolButton(gtk.STOCK_MEDIA_RECORD)
+window = Gtk.Window()
+toolbar = Gtk.Toolbar()
+toolbar.set_style(Gtk.ToolbarStyle.ICONS)
+tb_record = Gtk.ToolButton(Gtk.STOCK_MEDIA_RECORD)
 tb_record.set_tooltip_text("Record the entire baseband")
-tb_dump = gtk.ToolButton(gtk.STOCK_SAVE)
+tb_dump = Gtk.ToolButton(Gtk.STOCK_SAVE)
 tb_dump.set_tooltip_text("Dump the entire baseband history + start recording")
-tb_freq_label = gtk.Label("Frequency")
-tb_freq = gtk.Entry()
-tb_freq_plus = gtk.ToolButton(gtk.STOCK_GO_FORWARD)
-tb_freq_minus = gtk.ToolButton(gtk.STOCK_GO_BACK)
-tb_ppm_label = gtk.Label("PPM")
-tb_ppm = gtk.Entry()
-tb_gain_label = gtk.Label("Gain")
-tb_gain = gtk.Entry()
-tb_sql_label = gtk.Label("SQL")
-tb_sql = gtk.Entry()
-tb_cursor_label = gtk.Label(" --- ")
+tb_freq_label = Gtk.Label("Frequency")
+tb_freq = Gtk.Entry()
+tb_freq_plus = Gtk.ToolButton(Gtk.STOCK_GO_FORWARD)
+tb_freq_minus = Gtk.ToolButton(Gtk.STOCK_GO_BACK)
+tb_ppm_label = Gtk.Label("PPM")
+tb_ppm = Gtk.Entry()
+tb_gain_label = Gtk.Label("Gain")
+tb_gain = Gtk.Entry()
+tb_sql_label = Gtk.Label("SQL")
+tb_sql = Gtk.Entry()
+tb_cursor_label = Gtk.Label(" --- ")
 
 samplerate = 1
 # save the last coordinate of click on drawing area here
@@ -69,9 +74,9 @@ XlaterHelpers = {}
 
 def is_enter(event):
   """
-  True if event is gtk.Event of pressing Enter
+  True if event is Gtk.Event of pressing Enter
   """
-  return event.keyval == gtk.keysyms.Return
+  return event.keyval == Gtk.keysyms.Return
 
 def float2color(f):
   """
@@ -304,7 +309,7 @@ def make_panel(wid, offset, bw, filtertype, transition, sql, afc):
   model[-1] = [int(wid), libutil.safe_cast(offset, int, 0), filtertype, libutil.safe_cast(transition, int, 0),
                libutil.safe_cast(bw, int, 0), afc, sql, libutil.safe_cast(frequency + offset, int, 0)]
 
-def da_expose_event(widget, event):
+def da_draw(widget, event):
   """ Refresh display area on expose """
   pygame.display.update()
   return True
@@ -341,7 +346,7 @@ def on_demod(widget, event):
         offset = pixel2freq(wf_click_x)
         startframe = -1
 
-        if event.get_state() & gtk.gdk.CONTROL_MASK:
+        if event.get_state() & Gdk.CONTROL_MASK:
           startframe = pixel2frame(wf_click_y)
         print("freq %i x %i y %i hist %i"%(offset, wf_click_x, wf_click_y, startframe))
 
@@ -402,11 +407,11 @@ def da_press(widget, event):
     return
 
   # right click
-  if event.type == gtk.gdk.BUTTON_RELEASE and event.button == 3:
+  if event.type == Gdk.EventButton.BUTTON_RELEASE and event.button == 3:
     menu.popup(None, None, None, event.button, event.time)
 
   # release on move
-  if event.type == gtk.gdk.BUTTON_RELEASE and event.button == 1:
+  if event.type == Gdk.EventButton.BUTTON_RELEASE and event.button == 1:
     cl.acquire_xlaters()
     wid = pixel2xlater(wf_click_x)
     if wid is not None:
@@ -428,9 +433,9 @@ def da_scroll(widget, event):
     row = find_wid(wid)
     if row is not None:
 
-      if event.direction == gtk.gdk.SCROLL_UP:
+      if event.direction == Gdk.ScrollDirection.UP:
         newbw = 1.2*model[row][4]
-      elif event.direction == gtk.gdk.SCROLL_DOWN:
+      elif event.direction == Gdk.ScrollDirection.DOWN:
         newbw = 0.8*model[row][4]
 
       model[row][4] = int(newbw)
@@ -519,25 +524,25 @@ def on_sql_change(widget, event):
 
 def stop_record():
   cl.record(-1, -10)                                                          
-  tb_record.set_stock_id(gtk.STOCK_MEDIA_RECORD)                              
-  tb_dump.set_stock_id(gtk.STOCK_SAVE)  
+  tb_record.set_stock_id(Gtk.STOCK_MEDIA_RECORD)                              
+  tb_dump.set_stock_id(Gtk.STOCK_SAVE)  
 
 def on_record(widget):
   """ Record button pressed """
-  if tb_record.get_stock_id() == gtk.STOCK_MEDIA_RECORD:
+  if tb_record.get_stock_id() == Gtk.STOCK_MEDIA_RECORD:
     cl.record(-1, 2**31-1)
-    tb_record.set_stock_id(gtk.STOCK_MEDIA_STOP)
-    tb_dump.set_stock_id(gtk.STOCK_MEDIA_STOP)
+    tb_record.set_stock_id(Gtk.STOCK_MEDIA_STOP)
+    tb_dump.set_stock_id(Gtk.STOCK_MEDIA_STOP)
   else:
     stop_record()
 
 def on_dump(widget):
   """ Dump button pressed """
-  if tb_dump.get_stock_id() == gtk.STOCK_SAVE:
+  if tb_dump.get_stock_id() == Gtk.STOCK_SAVE:
     cur = max(fftframes.values())
     cl.record(cur-bufsize, 2**31-1)
-    tb_dump.set_stock_id(gtk.STOCK_MEDIA_STOP)
-    tb_record.set_stock_id(gtk.STOCK_MEDIA_STOP)
+    tb_dump.set_stock_id(Gtk.STOCK_MEDIA_STOP)
+    tb_record.set_stock_id(Gtk.STOCK_MEDIA_STOP)
   else:
     stop_record()
 
@@ -546,10 +551,10 @@ def steal_sdl_window(widget, data=None):
   Steal SDL window from GTK, draw to it
   """
   global screen, myfont
-  os.putenv('SDL_WINDOWID', str(widget.get_window().xid))
+  os.putenv('SDL_WINDOWID', str(widget.get_window().get_xid()))
   pygame.init()
   pygame.display.set_mode((da_width, da_height), 0, 0)
-  gtk.gdk.flush()
+  Gdk.flush()
 
   myfont = pygame.font.SysFont("monospace", conf.fontsize)
 
@@ -585,35 +590,35 @@ tb_record.connect("clicked", on_record)
 
 tb_dump.connect("clicked", on_dump)
 
-tb_scale = gtk.ToolButton(gtk.STOCK_SELECT_COLOR)
+tb_scale = Gtk.ToolButton(Gtk.STOCK_SELECT_COLOR)
 tb_scale.set_tooltip_text("Autorange the colors in waterfall")
 tb_scale.connect("clicked", on_fftscale)
 
 tb_freq.connect("key-press-event", on_freq_change)
-tb_freq.set_usize(110, -1)
+tb_freq.set_size_request(110, -1)
 
 tb_freq_plus.connect("clicked", on_freq_plus)
 tb_freq_minus.connect("clicked", on_freq_minus)
 
 tb_ppm.connect("key-press-event", on_ppm_change)
-tb_ppm.set_usize(35, -1)
+tb_ppm.set_size_request(35, -1)
 
 tb_gain.connect("key-press-event", on_gain_change)
-tb_gain.set_usize(100, -1)
+tb_gain.set_size_request(100, -1)
 
 tb_sql.set_text(str(conf.sqldelta))
 tb_sql.connect("key-press-event", on_sql_change)
-tb_sql.set_usize(35, -1)
+tb_sql.set_size_request(35, -1)
 
 # put buttons to toolbar
 for item in [tb_record, tb_scale, tb_dump, tb_freq_label, tb_freq_minus, tb_freq, tb_freq_plus,
              tb_ppm_label, tb_ppm, tb_gain_label, tb_gain, tb_sql_label, tb_sql, tb_cursor_label]:
-  if isinstance(item, gtk.Label):
-    toolbar.insert(gtk.SeparatorToolItem(), -1)
-  if isinstance(item, gtk.ToolButton):
+  if isinstance(item, Gtk.Label):
+    toolbar.insert(Gtk.SeparatorToolItem(), -1)
+  if isinstance(item, Gtk.ToolButton):
     toolbar.insert(item, -1)
   else:
-    wrapper= gtk.ToolItem()
+    wrapper= Gtk.ToolItem()
     wrapper.add(item)
     toolbar.insert(wrapper, -1)
 
@@ -665,13 +670,13 @@ def showerror(s):
   """
   Display alert message box
   """
-  message = gtk.MessageDialog(None, 0, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE, s)
+  message = Gtk.MessageDialog(None, 0, Gtk.MESSAGE_ERROR, Gtk.BUTTONS_CLOSE, s)
   message.run()
   message.destroy()
 
 
 # create and add scrollview with treeview with xlaters
-model = gtk.TreeStore(int,  # wid
+model = Gtk.TreeStore(int,  # wid
                       int,  # offset
                       str,  # type
                       int,  # transition
@@ -679,64 +684,64 @@ model = gtk.TreeStore(int,  # wid
                       bool, # AFC
                       bool, # SQL
                       int)  # freq
-treeView = gtk.TreeView(model)
+treeView = Gtk.TreeView(model)
 
 # ID column
-renderer = gtk.CellRendererText()
-column = gtk.TreeViewColumn('ID', renderer, text=0)
+renderer = Gtk.CellRendererText()
+column = Gtk.TreeViewColumn('ID', renderer, text=0)
 treeView.append_column(column)
 
 # Offset column
-renderer = gtk.CellRendererText()
+renderer = Gtk.CellRendererText()
 renderer.set_property('editable', True)
 renderer.connect('edited', xlater_edit, 1)
-column = gtk.TreeViewColumn('Offset', renderer, text=1)
+column = Gtk.TreeViewColumn('Offset', renderer, text=1)
 treeView.append_column(column)
 
 # FIR type column
-renderer = gtk.CellRendererText()
+renderer = Gtk.CellRendererText()
 renderer.set_property('editable', True)
 renderer.connect('edited', xlater_edit, 2)
-column = gtk.TreeViewColumn('FIR type', renderer, text=2)
+column = Gtk.TreeViewColumn('FIR type', renderer, text=2)
 treeView.append_column(column)
 
 # Lowpass column
-renderer = gtk.CellRendererText()
+renderer = Gtk.CellRendererText()
 renderer.set_property('editable', True)
 renderer.connect('edited', xlater_edit, 4)
-column = gtk.TreeViewColumn('Lowpass', renderer, text=4)
+column = Gtk.TreeViewColumn('Lowpass', renderer, text=4)
 treeView.append_column(column)
 
 # AFC checkbox column
-renderer = gtk.CellRendererToggle()
-column = gtk.TreeViewColumn('AFC', renderer, active=5)
+renderer = Gtk.CellRendererToggle()
+column = Gtk.TreeViewColumn('AFC', renderer, active=5)
 renderer.set_property('activatable', True)
 renderer.connect('toggled', afc_toggle_cb)
 treeView.append_column(column)
 
 # SQL checkbox column
-renderer = gtk.CellRendererToggle()
-column = gtk.TreeViewColumn('SQL', renderer, active=6)
+renderer = Gtk.CellRendererToggle()
+column = Gtk.TreeViewColumn('SQL', renderer, active=6)
 renderer.set_property('activatable', True)
 renderer.connect('toggled', sql_toggle_cb)
 treeView.append_column(column)
 
 # Frequency column
-renderer = gtk.CellRendererText()
+renderer = Gtk.CellRendererText()
 renderer.set_property('editable', True)
 renderer.connect('edited', xlater_edit, 7)
-column = gtk.TreeViewColumn('Frequency', renderer, text=7)
+column = Gtk.TreeViewColumn('Frequency', renderer, text=7)
 treeView.append_column(column)
 
 # Kill checkbox column
-renderer = gtk.CellRendererToggle()
-column = gtk.TreeViewColumn('Kill', renderer)
+renderer = Gtk.CellRendererToggle()
+column = Gtk.TreeViewColumn('Kill', renderer)
 renderer.set_property('activatable', True)
 renderer.connect('toggled', kill_toggle_cb)
 treeView.append_column(column)
 
-scrolled_window = gtk.ScrolledWindow()
-scrolled_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+scrolled_window = Gtk.ScrolledWindow()
+scrolled_window.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 scrolled_window.set_size_request(conf.borderleft, conf.areabottom)
 
 scrolled_window.add(treeView)
@@ -745,9 +750,9 @@ vbox.pack_end(scrolled_window, False, True, 0)
 window.add(vbox)
 
 # populate the right-click menu
-menu = gtk.Menu()
+menu = Gtk.Menu()
 for mode in sorted(modes, key = lambda m: modes[m].name):
-  menu_item = gtk.MenuItem(modes[mode].name)
+  menu_item = Gtk.MenuItem(modes[mode].name)
   modes[mode].button = menu_item
   menu_item.connect("button_press_event", on_demod)
   menu.append(menu_item)
@@ -764,22 +769,22 @@ da_width = conf.borderleft + conf.fftw + conf.histow + conf.histooffs
 da_height = conf.drawingheight
 
 # Put it into layout into table with horizontal scrolling.
-layout = gtk.Layout(None, None)
+layout = Gtk.Layout()
 layout.set_size_request(1024, da_height)
 layout.set_size(da_width, da_height)
-table = gtk.Table(2, 1, False)
-table.attach(layout, 0, 1, 0, 1, gtk.FILL|gtk.EXPAND, gtk.FILL|gtk.EXPAND, 0, 0)
+table = Gtk.Table(2, 1, False)
+table.attach(layout, 0, 1, 0, 1, Gtk.AttachOptions.FILL|Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL|Gtk.AttachOptions.EXPAND, 0, 0)
 
-hScrollbar = gtk.HScrollbar(None)
-table.attach(hScrollbar, 0, 1, 1, 2, gtk.FILL|gtk.SHRINK, gtk.FILL|gtk.SHRINK, 0, 0)
+hScrollbar = Gtk.HScrollbar(None)
+table.attach(hScrollbar, 0, 1, 1, 2, Gtk.AttachOptions.FILL|Gtk.AttachOptions.SHRINK, Gtk.AttachOptions.FILL|Gtk.AttachOptions.SHRINK, 0, 0)
 
 hAdjust = layout.get_hadjustment()
 hScrollbar.set_adjustment(hAdjust)
 
-drawing_area = gtk.DrawingArea()
+drawing_area = Gtk.DrawingArea()
 drawing_area.set_size_request(da_width, da_height)
-drawing_area.connect("realize",steal_sdl_window)
-drawing_area.connect("expose-event", da_expose_event)
+#drawing_area.connect("realize",steal_sdl_window)
+#drawing_area.connect("draw", da_draw)
 drawing_area.show()
 
 drawing_area.connect("button_press_event", da_press)
@@ -787,8 +792,8 @@ drawing_area.connect("button_release_event", da_press)
 drawing_area.connect("scroll-event", da_scroll)
 drawing_area.connect("motion-notify-event", da_motion)
 # Catch mouse events incl. scroll and move
-drawing_area.add_events(gtk.gdk.BUTTON_RELEASE_MASK |
-  gtk.gdk.BUTTON_PRESS_MASK | gtk.gdk.POINTER_MOTION_MASK | gtk.gdk.SCROLL_MASK)
+drawing_area.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK |
+  Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.SCROLL_MASK)
 
 layout.put(drawing_area, 0, 0)
 vbox.pack_start(table, True, True, 0)
@@ -796,7 +801,7 @@ vbox.pack_start(table, True, True, 0)
 def exit(widget):
   cl.disconnect()
   pygame.quit()
-  gtk.main_quit()
+  Gtk.main_quit()
   sys.exit(0)
 
 window.connect("destroy", exit)
@@ -805,5 +810,5 @@ window.show_all()
 
 window.set_title("%s:%i - Kukuruku client"%(conf.HOST, conf.PORT))
 
-gtk.main()
+Gtk.main()
 

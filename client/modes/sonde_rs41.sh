@@ -18,6 +18,6 @@ function ex() {
 
 trap ex SIGINT SIGTERM
 
-x-terminal-emulator -e rs41ecc -vv $pipe
+urxvt -e rs41ecc -vv $pipe
 
-ex
+exit
