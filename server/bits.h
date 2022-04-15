@@ -1,7 +1,7 @@
 #ifndef BITS_H
 #define BITS_H
 
-#include <endian.h>
+#include <machine/endian.h>
 
 #define OUR_ENDIAN __BYTE_ORDER
 #define TARGET_ENDIAN __LITTLE_ENDIAN

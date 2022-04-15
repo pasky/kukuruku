@@ -204,7 +204,7 @@ void network_listener(char * host, char * port) {
     if(ret < 0) {
       err(EXIT_FAILURE, "Cannot create client thread");
     }
-    pthread_setname_np(thread_id, "client_read_t");
+    //pthread_setname_np(thread_id, "client_read_t");
 
     pthread_detach(thread_id);
 

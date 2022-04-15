@@ -94,7 +94,7 @@ worker * create_xlate_worker(float rotate, int decim, int history, float * taps,
   if(ret < 0) {
     err(EXIT_FAILURE, "cannot create xlater worker thread");
   }
-  pthread_setname_np(w->thr, "worker");
+  // pthread_setname_np(w->thr, "worker");
 
   w->enabled = true;
 

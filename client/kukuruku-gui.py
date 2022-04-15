@@ -306,7 +306,7 @@ def make_panel(wid, offset, bw, filtertype, transition, sql, afc):
 
 def da_expose_event(widget, event):
   """ Refresh display area on expose """
-  pygame.display.update()
+  # pygame.display.update()
   return True
 
 def on_demod(widget, event):
@@ -546,7 +546,7 @@ def steal_sdl_window(widget, data=None):
   Steal SDL window from GTK, draw to it
   """
   global screen, myfont
-  os.putenv('SDL_WINDOWID', str(widget.get_window().xid))
+  # os.putenv('SDL_WINDOWID', str(widget.get_window().xid))
   pygame.init()
   pygame.display.set_mode((da_width, da_height), 0, 0)
   gtk.gdk.flush()

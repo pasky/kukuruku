@@ -2,6 +2,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <sys/types.h>
 #include <err.h>
 #include <volk/volk.h>
 

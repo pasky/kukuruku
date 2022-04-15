@@ -18,6 +18,6 @@ function ex() {
 
 trap ex SIGINT SIGTERM
 
-x-terminal-emulator -e rs41ecc -vv $pipe
+./rs41ecc -vv $pipe 2>&1 | tee -a /tmp/rs41.log
 
 ex
