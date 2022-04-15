@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <machine/endian.h>
 
