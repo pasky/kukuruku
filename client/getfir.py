@@ -1,4 +1,5 @@
 from gnuradio.filter import firdes
+from gnuradio.fft import window
 
 def getfir(samplerate, filtertype, bw, transition, maxtaps):
   """ Design a FIR lowpass.
@@ -29,7 +30,7 @@ def getfir(samplerate, filtertype, bw, transition, maxtaps):
 
   if filtertype == "hamming":
     while True:
-      coefs = firdes.low_pass(1, samplerate, bw, transition, firdes.WIN_HAMMING)
+      coefs = firdes.low_pass(1, samplerate, bw, transition, window.WIN_HAMMING)
       if len(coefs) < maxtaps:
         break
       print("transition %f yields too long filter (%i)"%(transition, len(coefs)))

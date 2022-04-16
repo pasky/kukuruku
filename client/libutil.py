@@ -22,7 +22,7 @@ def engnum(s):
       and there is really no use for milli here.
   """
 
-  if isinstance(s, (int, long, float)):
+  if isinstance(s, (int, float)):
     return s
 
   i = safe_cast(s, int)
