@@ -126,6 +126,8 @@ def info_cb(msg):
   """ Extract information from INFO message """
   global samplerate, frequency, ppm, gain, packetlen, bufsize, maxtaps
 
+  wait_for_info.acquire()
+
   samplerate = msg.samplerate
   frequency = msg.frequency
   ppm = msg.ppm
@@ -147,7 +149,6 @@ def info_cb(msg):
   conf.fftw = _fftw
 
   # signal that we have received server info and the GUI can now run
-  wait_for_info.acquire()
   wait_for_info.notify()
   wait_for_info.release()
 
@@ -570,6 +571,7 @@ def steal_sdl_window(widget, data=None):
   cl.list_xlaters()
 
 
+wait_for_info.acquire()
 cl = libclient.client()
 
 if len(sys.argv) >= 2:
@@ -760,9 +762,9 @@ for mode in sorted(modes, key = lambda m: modes[m].name):
 
 # create the main drawing area
 # wait until we know the FFT size the server uses!
-wait_for_info.acquire()
-if conf.fftw is None:
-  wait_for_info.wait()
+if conf.fftw is not None:
+  raise RuntimeError("fftw set before we wanted to wait for it???")
+wait_for_info.wait()
 wait_for_info.release()
 
 da_width = conf.borderleft + conf.fftw + conf.histow + conf.histooffs
