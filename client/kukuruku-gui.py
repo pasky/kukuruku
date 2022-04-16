@@ -48,14 +48,14 @@ wait_for_info = Condition()
 window = Gtk.Window()
 toolbar = Gtk.Toolbar()
 toolbar.set_style(Gtk.ToolbarStyle.ICONS)
-tb_record = Gtk.ToolButton(stock_id=Gtk.STOCK_MEDIA_RECORD)
+tb_record = Gtk.ToolButton(icon_name="media-record")
 tb_record.set_tooltip_text("Record the entire baseband")
-tb_dump = Gtk.ToolButton(stock_id=Gtk.STOCK_SAVE)
+tb_dump = Gtk.ToolButton(icon_name="document-save")
 tb_dump.set_tooltip_text("Dump the entire baseband history + start recording")
 tb_freq_label = Gtk.Label(label="Frequency")
 tb_freq = Gtk.Entry()
-tb_freq_plus = Gtk.ToolButton(stock_id=Gtk.STOCK_GO_FORWARD)
-tb_freq_minus = Gtk.ToolButton(stock_id=Gtk.STOCK_GO_BACK)
+tb_freq_plus = Gtk.ToolButton(icon_name="go-next")
+tb_freq_minus = Gtk.ToolButton(icon_name="go-previous")
 tb_ppm_label = Gtk.Label(label="PPM")
 tb_ppm = Gtk.Entry()
 tb_gain_label = Gtk.Label(label="Gain")
@@ -532,26 +532,26 @@ def on_sql_change(widget, event):
   tb_sql.set_text(str(conf.sqldelta))
 
 def stop_record():
-  cl.record(-1, -10)                                                          
-  tb_record.set_stock_id(Gtk.STOCK_MEDIA_RECORD)                              
-  tb_dump.set_stock_id(Gtk.STOCK_SAVE)  
+  cl.record(-1, -10)
+  tb_record.set_icon_name("media-record")
+  tb_dump.set_icon_name("document-save")
 
 def on_record(widget):
   """ Record button pressed """
-  if tb_record.get_stock_id() == Gtk.STOCK_MEDIA_RECORD:
+  if tb_record.get_icon_name() == "media-record":
     cl.record(-1, 2**31-1)
-    tb_record.set_stock_id(Gtk.STOCK_MEDIA_STOP)
-    tb_dump.set_stock_id(Gtk.STOCK_MEDIA_STOP)
+    tb_record.set_icon_name("media-playback-stop")
+    tb_dump.set_icon_name("media-playback-stop")
   else:
     stop_record()
 
 def on_dump(widget):
   """ Dump button pressed """
-  if tb_dump.get_stock_id() == Gtk.STOCK_SAVE:
+  if tb_dump.get_icon_name() == "document-save":
     cur = max(fftframes.values())
     cl.record(cur-bufsize, 2**31-1)
-    tb_dump.set_stock_id(Gtk.STOCK_MEDIA_STOP)
-    tb_record.set_stock_id(Gtk.STOCK_MEDIA_STOP)
+    tb_dump.set_icon_name("media-playback-stop")
+    tb_record.set_icon_name("media-playback-stop")
   else:
     stop_record()
 
