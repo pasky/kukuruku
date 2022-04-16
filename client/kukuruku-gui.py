@@ -76,7 +76,7 @@ def is_enter(event):
   """
   True if event is Gtk.Event of pressing Enter
   """
-  return event.keyval == Gtk.keysyms.Return
+  return event.keyval == Gdk.KEY_Return
 
 def float2color(f):
   """
@@ -346,7 +346,7 @@ def on_demod(widget, event):
         offset = pixel2freq(wf_click_x)
         startframe = -1
 
-        if event.get_state() & Gdk.CONTROL_MASK:
+        if event.get_state() & Gdk.ModifierType.CONTROL_MASK:
           startframe = pixel2frame(wf_click_y)
         print("freq %i x %i y %i hist %i"%(offset, wf_click_x, wf_click_y, startframe))
 
@@ -407,11 +407,11 @@ def da_press(widget, event):
     return
 
   # right click
-  if event.type == Gdk.EventButton.BUTTON_RELEASE and event.button == 3:
-    menu.popup(None, None, None, event.button, event.time)
+  if event.type == Gdk.EventType.BUTTON_RELEASE and event.button == 3:
+    menu.popup(None, None, None, None, event.button, event.time)
 
   # release on move
-  if event.type == Gdk.EventButton.BUTTON_RELEASE and event.button == 1:
+  if event.type == Gdk.EventType.BUTTON_RELEASE and event.button == 1:
     cl.acquire_xlaters()
     wid = pixel2xlater(wf_click_x)
     if wid is not None:
