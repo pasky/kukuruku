@@ -48,21 +48,21 @@ wait_for_info = Condition()
 window = Gtk.Window()
 toolbar = Gtk.Toolbar()
 toolbar.set_style(Gtk.ToolbarStyle.ICONS)
-tb_record = Gtk.ToolButton(Gtk.STOCK_MEDIA_RECORD)
+tb_record = Gtk.ToolButton(stock_id=Gtk.STOCK_MEDIA_RECORD)
 tb_record.set_tooltip_text("Record the entire baseband")
-tb_dump = Gtk.ToolButton(Gtk.STOCK_SAVE)
+tb_dump = Gtk.ToolButton(stock_id=Gtk.STOCK_SAVE)
 tb_dump.set_tooltip_text("Dump the entire baseband history + start recording")
-tb_freq_label = Gtk.Label("Frequency")
+tb_freq_label = Gtk.Label(label="Frequency")
 tb_freq = Gtk.Entry()
-tb_freq_plus = Gtk.ToolButton(Gtk.STOCK_GO_FORWARD)
-tb_freq_minus = Gtk.ToolButton(Gtk.STOCK_GO_BACK)
-tb_ppm_label = Gtk.Label("PPM")
+tb_freq_plus = Gtk.ToolButton(stock_id=Gtk.STOCK_GO_FORWARD)
+tb_freq_minus = Gtk.ToolButton(stock_id=Gtk.STOCK_GO_BACK)
+tb_ppm_label = Gtk.Label(label="PPM")
 tb_ppm = Gtk.Entry()
-tb_gain_label = Gtk.Label("Gain")
+tb_gain_label = Gtk.Label(label="Gain")
 tb_gain = Gtk.Entry()
-tb_sql_label = Gtk.Label("SQL")
+tb_sql_label = Gtk.Label(label="SQL")
 tb_sql = Gtk.Entry()
-tb_cursor_label = Gtk.Label(" --- ")
+tb_cursor_label = Gtk.Label(label=" --- ")
 
 samplerate = 1
 # save the last coordinate of click on drawing area here
@@ -590,7 +590,7 @@ tb_record.connect("clicked", on_record)
 
 tb_dump.connect("clicked", on_dump)
 
-tb_scale = Gtk.ToolButton(Gtk.STOCK_SELECT_COLOR)
+tb_scale = Gtk.ToolButton(stock_id=Gtk.STOCK_SELECT_COLOR)
 tb_scale.set_tooltip_text("Autorange the colors in waterfall")
 tb_scale.connect("clicked", on_fftscale)
 
@@ -684,7 +684,7 @@ model = Gtk.TreeStore(int,  # wid
                       bool, # AFC
                       bool, # SQL
                       int)  # freq
-treeView = Gtk.TreeView(model)
+treeView = Gtk.TreeView(model=model)
 
 # ID column
 renderer = Gtk.CellRendererText()
@@ -752,7 +752,7 @@ window.add(vbox)
 # populate the right-click menu
 menu = Gtk.Menu()
 for mode in sorted(modes, key = lambda m: modes[m].name):
-  menu_item = Gtk.MenuItem(modes[mode].name)
+  menu_item = Gtk.MenuItem(label=modes[mode].name)
   modes[mode].button = menu_item
   menu_item.connect("button_press_event", on_demod)
   menu.append(menu_item)
@@ -772,10 +772,10 @@ da_height = conf.drawingheight
 layout = Gtk.Layout()
 layout.set_size_request(1024, da_height)
 layout.set_size(da_width, da_height)
-table = Gtk.Table(2, 1, False)
+table = Gtk.Table(n_rows=2, n_columns=1, homogeneous=False)
 table.attach(layout, 0, 1, 0, 1, Gtk.AttachOptions.FILL|Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL|Gtk.AttachOptions.EXPAND, 0, 0)
 
-hScrollbar = Gtk.HScrollbar(None)
+hScrollbar = Gtk.HScrollbar(adjustment=None)
 table.attach(hScrollbar, 0, 1, 1, 2, Gtk.AttachOptions.FILL|Gtk.AttachOptions.SHRINK, Gtk.AttachOptions.FILL|Gtk.AttachOptions.SHRINK, 0, 0)
 
 hAdjust = layout.get_hadjustment()
