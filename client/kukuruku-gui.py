@@ -9,7 +9,7 @@ import struct
 import queue
 import time
 from datetime import datetime
-import pygame
+import cairo
 import math
 import subprocess
 
@@ -167,14 +167,16 @@ fft_lastshowntime = 0
 
 def fft_cb(d, frameno, timestamp):
   """ Handle spectrum measurement. Put color pixels to waterfall. """
-  global wfofs, lastfft, fft_lastshowntime, conf
+  global wfofs, lastfft, fft_lastshowntime, conf, screen, screenw
 
   data = None
   while(len(d) >= conf.fftw):
     data = d[:conf.fftw]
     for i in range(0, len(data)):
       idx = float2color(data[i])
-      screen.set_at((conf.borderleft+i, wfofs), colormap[idx])
+      screen.set_source_rgb(*colormap[idx])
+      screen.rectangle(conf.borderleft+i, wfofs, 1, 1)
+      screen.fill()
 
     for x in cl.xlaters.values():
       bw = samplerate/x.decimation
@@ -184,8 +186,11 @@ def fft_cb(d, frameno, timestamp):
 
       color = [BLACK, WHITE][wfofs%2]
 
-      screen.set_at((conf.borderleft+p1, wfofs), color)
-      screen.set_at((conf.borderleft+p2, wfofs), color)
+      screen.set_source_rgb(*color)
+      screen.rectangle(conf.borderleft+p1, wfofs, 1, 1)
+      screen.fill()
+      screen.rectangle(conf.borderleft+p2, wfofs, 1, 1)
+      screen.fill()
 
     fftframes[wfofs] = frameno
     ffttimes[wfofs] = timestamp
@@ -193,27 +198,30 @@ def fft_cb(d, frameno, timestamp):
 
     if fft_lastshowntime + 4.5 < timestamp and wfofs > conf.fontsize and timestamp % 5 == 0:
       wow = datetime.fromtimestamp(timestamp).strftime("%H:%M:%S %y%m%d")
-      label = myfont.render(wow, conf.antialias, WHITE)
-      ypos = max(0, wfofs - conf.fontsize)
-      screen.blit(label, (0, ypos))
+      ypos = max(0, wfofs)
+      screen.set_source_rgb(*WHITE)
+      screen.move_to(0, ypos)
+      screen.show_text(wow)
       fft_lastshowntime = timestamp
 
     wfofs = (wfofs+1)%da_height
     d = d[conf.fftw:]
 
-    pygame.draw.line(screen, BLACK,
-      [0, wfofs],
-      [conf.borderleft + conf.fftw, wfofs])
-    pygame.draw.line(screen, WHITE,
-      [0, (wfofs+1)%da_height],
-      [conf.borderleft + conf.fftw, (wfofs+1)%da_height])
+    screen.set_line_width(1)
+    screen.set_source_rgb(*BLACK)
+    screen.move_to(0.5, wfofs + 0.5)
+    screen.line_to(conf.borderleft + conf.fftw + 0.5, wfofs + 0.5)
+    screen.stroke()
+    screen.set_source_rgb(*WHITE)
+    screen.move_to(0.5, (wfofs+1)%da_height + 0.5)
+    screen.line_to(conf.borderleft + conf.fftw + 0.5, (wfofs+1)%da_height + 0.5)
+    screen.stroke()
+  screenw.queue_draw()
 
   if not lastfft:
     lastfft = data
     on_fftscale(None) # use the first measurement to at least coarsely adjust the color scheme
   lastfft = data
-
-  pygame.display.update()
 
 def sql_cb(rotation, decimation):
   """ Evaluate squelch for a channel, see documentation to libclient """
@@ -251,16 +259,21 @@ def sql_cb(rotation, decimation):
 
 def histo_cb(d):
   """ Display histogram data """
+  global screen, screenw
   xlim = max(d)
   for i in range(0, conf.histobars):
     bar = d[i]*conf.histow/xlim
     y = conf.histobars-i
-    pygame.draw.line(screen, WHITE,
-      [conf.borderleft + conf.fftw + conf.histooffs, y],
-      [conf.borderleft + conf.fftw + conf.histooffs + bar, y])
-    pygame.draw.line(screen, BLACK,
-      [conf.borderleft + conf.fftw + conf.histooffs + bar + 1, y],
-      [conf.borderleft + conf.fftw + conf.histooffs + conf.histow, y])
+    screen.set_line_width(1)
+    screen.set_source_rgb(*WHITE)
+    screen.move_to(conf.borderleft + conf.fftw + conf.histooffs + 0.5, y + 0.5)
+    screen.line_to(conf.borderleft + conf.fftw + conf.histooffs + bar + 0.5, y + 0.5)
+    screen.stroke()
+    screen.set_source_rgb(*BLACK)
+    screen.move_to(conf.borderleft + conf.fftw + conf.histooffs + bar + 1 + 0.5, y + 0.5)
+    screen.line_to(conf.borderleft + conf.fftw + conf.histooffs + conf.histow + 0.5, y + 0.5)
+    screen.stroke()
+  screenw.queue_draw()
 
 def xlater_cb():
   """ Write changes in libclient.xlaters to the GUI listview """
@@ -309,11 +322,6 @@ def make_panel(wid, offset, bw, filtertype, transition, sql, afc):
   model.append(None)
   model[-1] = [int(wid), libutil.safe_cast(offset, int, 0), filtertype, libutil.safe_cast(transition, int, 0),
                libutil.safe_cast(bw, int, 0), afc, sql, libutil.safe_cast(frequency + offset, int, 0)]
-
-def da_draw(widget, event):
-  """ Refresh display area on expose """
-  pygame.display.update()
-  return True
 
 def on_demod(widget, event):
   """ The item in context menu was selected. Create new xlater. """
@@ -547,28 +555,36 @@ def on_dump(widget):
   else:
     stop_record()
 
-def steal_sdl_window(widget, data=None):
+def da_configure(widget, data=None):
   """
   Steal SDL window from GTK, draw to it
   """
-  global screen, myfont
-  os.putenv('SDL_WINDOWID', str(widget.get_window().get_xid()))
-  pygame.init()
-  pygame.display.set_mode((da_width, da_height), 0, 0)
+  global screen, screenw, surface
+
+  surface = widget.get_window().create_similar_surface(cairo.CONTENT_COLOR, da_width, da_height)
+  screenw = widget
+  screen = cairo.Context(surface)
+
   Gdk.flush()
 
-  myfont = pygame.font.SysFont("monospace", conf.fontsize)
-
-  screen = pygame.display.get_surface()
-  label = myfont.render("Kukuruku client (c) 2014-2016 NSA Litomerice", conf.antialias, (255,255,255))
-  screen.blit(label, (100, 200))
-  pygame.display.update()
+  screen.set_font_size(conf.fontsize)
+  screen.select_font_face("monospace", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+  screen.set_source_rgb(*WHITE)
+  screen.move_to(100, 200)
+  screen.show_text("Kukuruku client (c) 2014-2016 NSA Litomerice")
 
   cl.set_fft_callback(fft_cb)
   cl.set_sql_callback(sql_cb)
   cl.set_histo_callback(histo_cb)
   cl.set_xlater_callback(xlater_cb)
   cl.list_xlaters()
+
+def da_draw(widget, cairo):
+  """ Refresh display area on expose """
+  global surface
+  cairo.set_source_surface(surface, 0, 0)
+  cairo.paint()
+  return True
 
 
 wait_for_info.acquire()
@@ -785,8 +801,8 @@ hScrollbar.set_adjustment(hAdjust)
 
 drawing_area = Gtk.DrawingArea()
 drawing_area.set_size_request(da_width, da_height)
-#drawing_area.connect("realize",steal_sdl_window)
-#drawing_area.connect("draw", da_draw)
+drawing_area.connect("configure-event", da_configure)
+drawing_area.connect("draw", da_draw)
 drawing_area.show()
 
 drawing_area.connect("button_press_event", da_press)
@@ -802,7 +818,6 @@ vbox.pack_start(table, True, True, 0)
 
 def exit(widget):
   cl.disconnect()
-  pygame.quit()
   Gtk.main_quit()
   sys.exit(0)
 
