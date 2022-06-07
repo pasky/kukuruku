@@ -11,9 +11,14 @@ gain="30"
 ppm="$3"
 sample_rate="$2"
 listen_address="$4"
+listen_port="$5"
 
-if [ -z listen_address ]; then
+if [ -z $listen_address ]; then
   listen_address="::1"
+fi
+
+if [ -z $listen_port ]; then
+  listen_port="4444"
 fi
 
 freq="$(( 100 * 1000 * 1000 ))"
@@ -22,7 +27,7 @@ freq="$(( 100 * 1000 * 1000 ))"
 [ ! -p "$tune" ] && mkfifo "$tune"
 
 # set -b :: for ipv4 and ipv6 all interfaces
-./server -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -a -s "$sample_rate" -b "$listen_address" -t 4444 -w 1024 &
+./server -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -a -s "$sample_rate" -b "$listen_address" -t $listen_port -w 1024 &
 spid=$!
 
 echo "Server PID $spid, use 'gdb ./server $spid -ex c' to debug"
