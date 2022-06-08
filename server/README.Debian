@@ -1,0 +1,8 @@
+Build Debian package and install it:
+
+	dpkg-buildpackage -b -ui -uc -us
+	dpkg -i ../kukuruku-server_*.deb
+
+It automatically started as a system service. You can tweak the settings in
+`/etc/default/kukuruku-server` (you will want to at least tweak the IP address
+for network-based operation).

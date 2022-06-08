@@ -1,0 +1,8 @@
+# kukuruku configuration
+# This is sourced by /etc/systemd/system/default.target.wants/kukuruku-server.service as
+# daemon startup configuration.
+
+DEVICE="rtl=0"
+SAMPLE_RATE=1024000
+PPM=0
+NET_OPTIONS="127.0.0.1 4444"

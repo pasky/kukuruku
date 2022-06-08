@@ -1,0 +1,2 @@
+server usr/libexec/kukuruku-server
+osmosdr-input.py usr/libexec/kukuruku-server

@@ -1,0 +1,21 @@
+# kukuruku service for systemd
+
+[Unit]
+Description=kukuruku Server
+Wants=network.target
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/default/kukuruku-server
+User=kukuruku
+RuntimeDirectory=kukuruku-server
+RuntimeDirectoryMode=0755
+ExecStart=/usr/bin/kukuruku-server \
+ /usr/libexec/kukuruku-server $DEVICE $SAMPLE_RATE $PPM $NET_OPTIONS
+Type=simple
+Restart=on-failure
+RestartSec=30
+Nice=-5
+
+[Install]
+WantedBy=default.target
