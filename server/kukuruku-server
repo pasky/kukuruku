@@ -1,17 +1,19 @@
 #!/bin/bash
 
-if [ $# -lt 3 ]; then
-  echo "Usage: $0 device rate ppm <listen-address, default ::1>"
+if [ $# -lt 4 ]; then
+  echo "Usage: $0 <libexec-path, when running manually use '.'> device rate ppm <listen-address, default ::1> [<port, default 4444>]"
   exit 2
 fi
 
-sdr="/tmp/sdrpipe"
-tune="/tmp/tunepipe"
+sdr="/tmp/sdrpipe$$"
+tune="/tmp/tunepipe$$"
 gain="30"
-ppm="$3"
-sample_rate="$2"
-listen_address="$4"
-listen_port="$5"
+libexec_path="$1"
+device="$2"
+sample_rate="$3"
+ppm="$4"
+listen_address="$5"
+listen_port="$6"
 
 if [ -z $listen_address ]; then
   listen_address="::1"
@@ -27,12 +29,11 @@ freq="$(( 100 * 1000 * 1000 ))"
 [ ! -p "$tune" ] && mkfifo "$tune"
 
 # set -b :: for ipv4 and ipv6 all interfaces
-./server -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -a -s "$sample_rate" -b "$listen_address" -t $listen_port -w 1024 &
+$libexec_path/server -p "$ppm" -f "$freq" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -a -s "$sample_rate" -b "$listen_address" -t $listen_port -w 1024 &
 spid=$!
 
 echo "Server PID $spid, use 'gdb ./server $spid -ex c' to debug"
 
-trap "kill $spid" SIGINT SIGTERM
+trap "kill $spid; rm -f $sdr $tune" SIGINT SIGTERM exit
 
-./osmosdr-input.py -d "$1" -r "$2" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -p "$ppm"
-kill $spid
+$libexec_path/osmosdr-input.py -d "$device" -r "$sample_rate" -i "$tune" -o "$sdr" -f "$freq" -g "$gain" -p "$ppm"
