@@ -10,6 +10,7 @@ from gnuradio.eng_option import eng_option
 from gnuradio.filter import firdes
 import sys
 import osmosdr
+import signal
 import time
 import threading
 import struct
@@ -124,10 +125,12 @@ t.daemon = True
 t.start()
 
 tb.start()
-try:
-    input('Press Enter to quit: ')
-except EOFError:
-    pass
+while True:
+    signal.pause()
+#try:
+#    input('Press Enter to quit: ')
+#except EOFError:
+#    pass
 tb.stop()
 tb.wait()
 
